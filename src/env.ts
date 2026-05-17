@@ -193,6 +193,102 @@ export function animateDust(dust: THREE.Group, elapsed: number, delta: number): 
   });
 }
 
+/* ─── Background plane ───────────────────────────────────────────────────── */
+
+export type BgColor   = 'deep-blue' | 'stone' | 'forest' | 'burgundy' | 'off';
+export type BgTexture = 'solid' | 'gradient' | 'grid' | 'bokeh';
+
+const BG_HEX: Record<BgColor, string> = {
+  'deep-blue': '#0b1530',
+  'stone':     '#1c1510',
+  'forest':    '#091308',
+  'burgundy':  '#1a0608',
+  'off':       '#030203',
+};
+
+export function createBackgroundPlane(): {
+  mesh: THREE.Mesh;
+  set(color: BgColor, tex: BgTexture): void;
+} {
+  const SIZE = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = SIZE; canvas.height = SIZE;
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+
+  const geo = new THREE.PlaneGeometry(15, 20);
+  const mat = new THREE.MeshBasicMaterial({ map: tex, depthWrite: false });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(0, 0.4, -3.3);
+  mesh.renderOrder = -1;
+
+  function set(color: BgColor, type: BgTexture) {
+    const ctx = canvas.getContext('2d')!;
+    const s = SIZE;
+    const hex = BG_HEX[color];
+    ctx.fillStyle = hex;
+    ctx.fillRect(0, 0, s, s);
+
+    if (type === 'gradient') {
+      const g = ctx.createRadialGradient(s/2, s*0.42, 0, s/2, s*0.42, s*0.65);
+      g.addColorStop(0,   hexAlpha(hex, 0.0));   // lighter center (transparent overlay)
+      g.addColorStop(0.5, hexAlpha('#ffffff', 0.04));
+      g.addColorStop(1,   hexAlpha('#000000', 0.55));
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, s, s);
+    }
+
+    if (type === 'grid') {
+      ctx.strokeStyle = hexAlpha('#ffffff', 0.08);
+      ctx.lineWidth = 0.6;
+      const step = s / 24;
+      for (let x = 0; x <= s; x += step) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, s); ctx.stroke();
+      }
+      for (let y = 0; y <= s; y += step) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(s, y); ctx.stroke();
+      }
+    }
+
+    if (type === 'bokeh') {
+      // Scattered soft light circles — looks like out-of-focus highlights
+      const rng = mulberry32(0xdeadbeef);
+      for (let i = 0; i < 55; i++) {
+        const x = rng() * s, y = rng() * s;
+        const r = 8 + rng() * 38;
+        const a = 0.03 + rng() * 0.09;
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0,   hexAlpha('#c8deff', a));
+        g.addColorStop(0.6, hexAlpha('#8aaeff', a * 0.4));
+        g.addColorStop(1,   'transparent');
+        ctx.fillStyle = g;
+        ctx.fillRect(x - r, y - r, r * 2, r * 2);
+      }
+    }
+
+    tex.needsUpdate = true;
+  }
+
+  set('deep-blue', 'gradient');
+  return { mesh, set };
+}
+
+function hexAlpha(hex: string, a: number): string {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+function mulberry32(seed: number) {
+  return function() {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
 /* ─── Dark environment map ───────────────────────────────────────────────── */
 
 export function buildEnvMap(renderer: THREE.WebGLRenderer): THREE.Texture {

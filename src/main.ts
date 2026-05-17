@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
-import { buildEnvMap, createRockBase, createGround, createFogPlanes, createDustParticles, animateDust } from './env';
+import { buildEnvMap, createRockBase, createGround, createFogPlanes, createDustParticles, animateDust, createBackgroundPlane, BgColor, BgTexture } from './env';
 import { createIrisFlower, generateVeinMaps } from './iris';
 import { setupLights } from './lights';
 import { buildComposer } from './fx';
@@ -80,6 +80,10 @@ flower4.rotation.y = 1.1;
 flower4.scale.setScalar(0.7);
 scene.add(flower4);
 
+// Background plane (behind flowers, shows through transmission)
+const bg = createBackgroundPlane();
+scene.add(bg.mesh);
+
 // Environment
 scene.add(createRockBase());
 scene.add(createGround());
@@ -96,6 +100,60 @@ const fx = buildComposer(renderer, scene, camera);
 
 let autoRotate = true;
 controls.addEventListener('start', () => { autoRotate = false; });
+
+/* ─── Controls panel wiring ──────────────────────────────────────────────── */
+
+let bgColor: BgColor   = 'deep-blue';
+let bgTex:   BgTexture = 'gradient';
+let dofEnabled = true;
+
+// Background color swatches
+document.querySelectorAll<HTMLElement>('[data-bg-color]').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('[data-bg-color]').forEach(e => e.classList.remove('active'));
+    el.classList.add('active');
+    bgColor = el.dataset['bgColor'] as BgColor;
+    bg.set(bgColor, bgTex);
+    bg.mesh.visible = bgColor !== 'off';
+  });
+});
+
+// Background texture radios
+document.querySelectorAll<HTMLElement>('[data-bg-tex]').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('[data-bg-tex]').forEach(e => e.classList.remove('active'));
+    el.classList.add('active');
+    bgTex = el.dataset['bgTex'] as BgTexture;
+    bg.set(bgColor, bgTex);
+  });
+});
+
+// Auto-rotate toggle
+const rotBtn = document.getElementById('toggle-rotate')!;
+rotBtn.addEventListener('click', () => {
+  autoRotate = !autoRotate;
+  rotBtn.classList.toggle('on', autoRotate);
+  rotBtn.textContent = autoRotate ? 'Rotate  ON' : 'Rotate OFF';
+});
+
+// DOF toggle
+const dofBtn = document.getElementById('toggle-dof')!;
+dofBtn.addEventListener('click', () => {
+  dofEnabled = !dofEnabled;
+  fx.bokeh.enabled = dofEnabled;
+  dofBtn.classList.toggle('on', dofEnabled);
+  dofBtn.textContent = dofEnabled ? 'DOF  ON' : 'DOF OFF';
+});
+
+// Controls panel open/close
+const panel     = document.getElementById('ctrl-panel')!;
+const ctrlBtn   = document.getElementById('btn-controls')!;
+ctrlBtn.addEventListener('click', () => panel.classList.toggle('open'));
+
+/* ─── FPS counter ────────────────────────────────────────────────────────── */
+
+let fpsFrames = 0, fpsAccum = 0;
+const fpsEl = document.getElementById('fps-val')!;
 
 /* ─── Resize ─────────────────────────────────────────────────────────────── */
 
@@ -137,6 +195,14 @@ function animate() {
   controls.update();
   fx.tick(dt);
   fx.composer.render();
+
+  // FPS
+  fpsFrames++;
+  fpsAccum += dt;
+  if (fpsAccum >= 0.5) {
+    fpsEl.textContent = String(Math.round(fpsFrames / fpsAccum));
+    fpsFrames = 0; fpsAccum = 0;
+  }
 }
 
 animate();
