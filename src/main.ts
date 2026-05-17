@@ -83,6 +83,34 @@ scene.add(flower4);
 // Environment
 scene.add(createRockBase());
 
+// ── Vein flash lights — tiny PointLights pressed near petal surfaces ─────────
+// They are invisible (no visible source geometry) but their tight specular
+// catches vein ridges (different roughness/normal) and flashes a dot there.
+const veinFlashLights: { light: THREE.PointLight; speed: number; phase: number }[] = [];
+
+(function buildVeinLights() {
+  // 6 lights: one per petal (alternating falls/standards at 60° steps)
+  // Positioned at r=0.38 from center, skimming the petal body
+  const positions: [number, number, number][] = [
+    [ 0.00,  0.28,  0.38],   // fall front
+    [ 0.33,  0.42, -0.22],   // standard right
+    [ 0.36,  0.18,  0.18],   // fall right
+    [-0.33,  0.42, -0.22],   // standard left
+    [-0.36,  0.18,  0.18],   // fall left
+    [ 0.00,  0.55, -0.38],   // standard back
+  ];
+  positions.forEach(([x, y, z], i) => {
+    const light = new THREE.PointLight(0xc8dcff, 0, 0.9, 2.2);
+    light.position.set(x, y, z);
+    heroFlower.add(light);   // child of heroFlower so it rotates with it
+    veinFlashLights.push({
+      light,
+      speed: 0.55 + (i % 3) * 0.18,          // varied flash cadence
+      phase: (i / positions.length) * Math.PI * 2,
+    });
+  });
+})();
+
 const dust = createDustParticles();
 scene.add(dust);
 
@@ -202,6 +230,12 @@ function animate() {
     flower3.rotation.y    = -0.42 + t * 0.06;
     flower4.rotation.y    = 1.1  + t * 0.04;
   }
+
+  // Vein flash — each light fires a sharp cubic spike then returns to 0
+  veinFlashLights.forEach(({ light, speed, phase }) => {
+    const s = Math.sin(t * speed + phase);
+    light.intensity = s > 0 ? s * s * s * 7 : 0;  // cubic → sharp, fast peaks
+  });
 
   animateDust(dust, t, dt);
   controls.update();
