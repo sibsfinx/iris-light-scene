@@ -101,7 +101,7 @@ export function buildComposer(
   composer.addPass(bokeh);
 
   // Bloom — wide radius = round glow; high threshold = only true hotspots bloom
-  const bloom = new UnrealBloomPass(new THREE.Vector2(w, h), 0.35, 0.80, 0.92);
+  const bloom = new UnrealBloomPass(new THREE.Vector2(w, h), 0.45, 0.82, 0.82);
   composer.addPass(bloom);
 
   // Filmic grade

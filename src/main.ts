@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
-import { buildSkyEnv, createRockBase, createGround, createFogPlanes, createDustParticles, animateDust, SkyPreset } from './env';
+import { buildSkyEnv, createRockBase, createDustParticles, animateDust, SkyPreset } from './env';
 import { createIrisFlower, generateVeinMaps } from './iris';
 import { setupLights } from './lights';
 import { buildComposer } from './fx';
+import { createFlowerFlares, animateFlares } from './flares';
 
 /* ─── Renderer ───────────────────────────────────────────────────────────── */
 
@@ -18,7 +19,7 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.44;
+renderer.toneMappingExposure = 0.72;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
@@ -82,6 +83,25 @@ scene.add(flower4);
 
 // Environment
 scene.add(createRockBase());
+
+// ── Particle flare swarms — one per flower, sampled from mesh vertices ──────
+const flareSwarms: THREE.Points[] = [];
+
+// Update world matrices before sampling so localToWorld is accurate
+[heroFlower, flower2, flower3, flower4].forEach(f => f.updateWorldMatrix(true, true));
+
+const flareConfigs: [THREE.Group, number, number, number][] = [
+  [heroFlower, 6,    0xc8dcff, 0.026],
+  [flower2,    10,   0xb8ceff, 0.020],
+  [flower3,    14,   0xacc4ff, 0.016],
+  [flower4,    20,   0xa4bcf8, 0.013],
+];
+
+flareConfigs.forEach(([f, stride, color, size], i) => {
+  const swarm = createFlowerFlares(f, { stride, color, size, opacity: 0.70, seed: 0x1234 + i * 0x111 });
+  scene.add(swarm);
+  flareSwarms.push(swarm);
+});
 
 const dust = createDustParticles();
 scene.add(dust);
@@ -203,15 +223,7 @@ function animate() {
     flower4.rotation.y    = 1.1  + t * 0.04;
   }
 
-  // Subtle breathing on fog planes
-  scene.children.forEach(child => {
-    if (child.userData['isFog']) {
-      child.children.forEach((p, i) => {
-        p.position.y += Math.sin(t * 0.25 + i) * 0.0003;
-      });
-    }
-  });
-
+  animateFlares(flareSwarms, t, dt);
   animateDust(dust, t, dt);
   controls.update();
   fx.tick(dt);
