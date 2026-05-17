@@ -383,32 +383,7 @@ export function createIrisFlower(
     flower.add(p);
   }
 
-  // ── Style arms (3 × small horizontal crested structures) ─────────────────
-  const styleMat = petalMat.clone();
-  styleMat.color = new THREE.Color(0.04, 0.08, 0.22);
-  styleMat.iridescence = 0.3;
-  styleMat.transmission = 0.38;
-  styleMat.envMapIntensity = 0.2;
-
-  const styleGeo = buildPetalGeo({
-    length: 0.22,
-    maxWidth: 0.07,
-    droop: 0.18,
-    cup: 1.1,
-    waviness: 0.02,
-    edgeRuffle: 0.4,
-    twist: 0.05,
-    uSegs: s(14),
-    vSegs: s(8),
-  });
-
-  for (let k = 0; k < 3; k++) {
-    const arm = new THREE.Mesh(styleGeo, styleMat);
-    arm.rotation.y = (k / 3) * Math.PI * 2;
-    arm.rotation.x = -Math.PI * 0.28;
-    arm.position.y = 0.02;
-    flower.add(arm);
-  }
+  // ── Style arms hidden — blade shape catches sharp reflections at roughness 0.02
 
   // ── Stem + 2 bracts (hidden — breaks dark atmosphere) ────────────────────
   if (false && detail > 0.9) {

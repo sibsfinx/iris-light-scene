@@ -82,8 +82,6 @@ scene.add(flower4);
 
 // Environment
 scene.add(createRockBase());
-scene.add(createGround());
-scene.add(createFogPlanes());
 
 const dust = createDustParticles();
 scene.add(dust);
