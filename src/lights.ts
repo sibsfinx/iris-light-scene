@@ -3,7 +3,13 @@ import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLigh
 
 RectAreaLightUniformsLib.init();
 
-export function setupLights(scene: THREE.Scene): void {
+export interface SceneLights {
+  godRay:  THREE.RectAreaLight;
+  godRay2: THREE.RectAreaLight;
+  ambient: THREE.AmbientLight;
+}
+
+export function setupLights(scene: THREE.Scene): SceneLights {
   // Primary god-ray — upper-right, tight bright shaft
   const godRay = new THREE.RectAreaLight(0xe0eeff, 55, 0.7, 6.0);
   godRay.position.set(3.4, 5.5, 0.8);
@@ -41,6 +47,9 @@ export function setupLights(scene: THREE.Scene): void {
   scene.add(sideSpot);
   scene.add(sideSpot.target);
 
-  scene.add(new THREE.AmbientLight(0x010102, 0.03));
+  const ambient = new THREE.AmbientLight(0x010102, 0.03);
+  scene.add(ambient);
   scene.add(new THREE.HemisphereLight(0x010408, 0x010101, 0.02));
+
+  return { godRay, godRay2, ambient };
 }

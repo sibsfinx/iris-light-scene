@@ -3,8 +3,9 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 import { buildEnvMap, createRockBase, createGround, createFogPlanes, createDustParticles, animateDust } from './env';
 import { createIrisFlower, generateVeinMaps } from './iris';
-import { setupLights } from './lights';
+import { setupLights, type SceneLights } from './lights';
 import { buildComposer } from './fx';
+import { PresenceDetector, type PresenceSignal } from './presence';
 
 /* ─── Renderer ───────────────────────────────────────────────────────────── */
 
@@ -52,7 +53,7 @@ scene.environment = envMap;
 
 const { roughMap, normalMap } = generateVeinMaps(1024, 1024);
 
-setupLights(scene);
+const lights: SceneLights = setupLights(scene);
 
 // ── Hero flower — front-centre, full detail ──────────────────────────────
 const heroFlower = createIrisFlower(envMap, roughMap, normalMap, { detail: 1.0 });
@@ -91,6 +92,149 @@ scene.add(dust);
 /* ─── Post-processing ────────────────────────────────────────────────────── */
 
 const fx = buildComposer(renderer, scene, camera);
+
+/* ─── Presence detection ─────────────────────────────────────────────────── */
+
+const detector = new PresenceDetector();
+
+// Smoothed signal values
+const smooth = { motion: 0, distance: 0, blendA: 0 };
+
+// ── Light colour palette — cool baseline + one target per mode ────────────
+// cool (idle)
+const _cool1  = new THREE.Color(0xe0eeff);
+const _cool2  = new THREE.Color(0xc0d8ff);
+// face mode — warm amber/gold
+const _warm1  = new THREE.Color(0xffa858);
+const _warm2  = new THREE.Color(0xff8830);
+// motion mode — violet + cyan
+const _viol1  = new THREE.Color(0x9040ff);
+const _cyan2  = new THREE.Color(0x18c8e8);
+// pose/arms-up mode — magenta + red
+const _mage1  = new THREE.Color(0xff0ea0);
+const _red2   = new THREE.Color(0xff1828);
+// pre-allocated temps (no GC per frame)
+const _tgt1   = new THREE.Color();
+const _tgt2   = new THREE.Color();
+
+// ── Camera preview plumbing ───────────────────────────────────────────────
+const previewWrap   = document.getElementById('cam-preview-wrap')!;
+const previewVideo  = document.getElementById('cam-preview') as HTMLVideoElement;
+const previewToggle = document.getElementById('cam-preview-toggle')!;
+let previewVisible  = true;
+
+previewToggle.addEventListener('click', () => {
+  previewVisible = !previewVisible;
+  previewVideo.style.opacity      = previewVisible ? '0.85' : '0';
+  previewToggle.textContent       = previewVisible ? '✕' : '◻';
+  previewToggle.title             = previewVisible ? 'Hide preview' : 'Show preview';
+});
+
+detector.onStatusChange = (type, msg) => {
+  const dot   = document.getElementById('cam-dot')!;
+  const label = document.getElementById('cam-label')!;
+  dot.className     = type;
+  label.textContent = msg;
+
+  // Show/hide preview based on camera state
+  const isActive = type === 'active' || type === 'loading';
+  previewWrap.style.display = isActive ? 'block' : 'none';
+  if (isActive && detector.stream) {
+    previewVideo.srcObject = detector.stream;
+  }
+};
+
+// ── Camera mode buttons ───────────────────────────────────────────────────
+document.querySelectorAll('.cam-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const mode = (btn as HTMLElement).dataset['mode'] as any;
+    document.querySelectorAll('.cam-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    await detector.setMode(mode);
+    document.getElementById('cam-bars')!.style.display = mode === 'off' ? 'none' : 'flex';
+    smooth.motion = 0; smooth.distance = 0; smooth.blendA = 0;
+    // Snap lights back to cool on mode switch
+    lights.godRay.color.copy(_cool1);
+    lights.godRay2.color.copy(_cool2);
+  });
+});
+document.getElementById('cam-bars')!.style.display = 'none';
+
+/* ─── reactToPresence — call once per frame ─────────────────────────────── */
+
+function reactToPresence(sig: PresenceSignal, dt: number, _t: number) {
+  const lf = 1 - Math.pow(0.04, dt);  // ~0.33 at 60 fps
+
+  // ── Smooth raw signals ────────────────────────────────────────────────────
+  smooth.motion   += (sig.motion   - smooth.motion)   * lf;
+  smooth.distance += (sig.distance - smooth.distance) * lf;
+
+  // ── Mode-specific blend target (0..1) ────────────────────────────────────
+  const isMotion = detector.mode === 'motion';
+  let targetBlend = 0;
+  if      (isMotion)                   targetBlend = Math.min(1, smooth.motion * 15.0); // amplify sensitivity
+  else if (detector.mode === 'face')   targetBlend = smooth.distance;
+  else if (detector.mode === 'pose')   targetBlend = sig.armsRaised ? smooth.distance : smooth.distance * 0.15;
+
+  // Motion: snap up fast, ease down slower (feels punchy)
+  const riseEase = isMotion ? 0.80 : 0.35;
+  const fallEase = isMotion ? 0.25 : 0.35;
+  const blendEase = targetBlend > smooth.blendA ? riseEase : fallEase;
+  smooth.blendA += (targetBlend - smooth.blendA) * lf * blendEase;
+
+  // ── Compute target colours per mode ──────────────────────────────────────
+  if (isMotion) {
+    _tgt1.lerpColors(_cool1, _viol1, smooth.blendA);
+    _tgt2.lerpColors(_cool2, _cyan2, smooth.blendA * 0.85);
+  } else if (detector.mode === 'face') {
+    _tgt1.lerpColors(_cool1, _warm1, smooth.blendA);
+    _tgt2.lerpColors(_cool2, _warm2, smooth.blendA * 0.9);
+  } else if (detector.mode === 'pose') {
+    _tgt1.lerpColors(_cool1, _mage1, smooth.blendA);
+    _tgt2.lerpColors(_cool2, _red2,  smooth.blendA * 0.9);
+  } else {
+    _tgt1.copy(_cool1);
+    _tgt2.copy(_cool2);
+  }
+
+  const lightEase = isMotion ? 0.55 : 0.30;
+
+  // Drive light colour toward target
+  lights.godRay.color.lerp (_tgt1, lf * lightEase);
+  lights.godRay2.color.lerp(_tgt2, lf * lightEase);
+
+  // ── Light intensity ───────────────────────────────────────────────────────
+  const intBoost  = isMotion ? 90 : 65;          // motion gets bigger spike
+  const targetInt1 = 55 + smooth.blendA * intBoost;
+  const targetInt2 = 30 + smooth.blendA * (intBoost * 0.65);
+  lights.godRay.intensity  += (targetInt1 - lights.godRay.intensity)  * lf * lightEase;
+  lights.godRay2.intensity += (targetInt2 - lights.godRay2.intensity) * lf * lightEase;
+
+  // ── Exposure + bloom ──────────────────────────────────────────────────────
+  const expBoost   = isMotion ? 0.36 : 0.28;
+  const bloomBoost = isMotion ? 0.72 : 0.55;
+  const targetExp   = 0.50 + smooth.blendA * expBoost;
+  const targetBloom = 0.48 + smooth.blendA * bloomBoost;
+  renderer.toneMappingExposure +=
+    (targetExp   - renderer.toneMappingExposure) * lf * (isMotion ? 0.45 : 0.25);
+  fx.bloom.strength +=
+    (targetBloom - fx.bloom.strength)            * lf * (isMotion ? 0.40 : 0.20);
+
+  // ── HUD bars ──────────────────────────────────────────────────────────────
+  if (detector.mode !== 'off') {
+    const ms = document.getElementById('cam-ms');
+    if (ms) ms.textContent = `${detector.detectionMs.toFixed(1)} ms`;
+  }
+  const bm = document.getElementById('bar-motion');
+  const bd = document.getElementById('bar-dist');
+  const ba = document.getElementById('bar-approaching');
+  const bf = document.getElementById('cam-faces');
+  if (bm) bm.style.width = `${(smooth.motion   * 100).toFixed(1)}%`;
+  if (bd) bd.style.width  = `${(smooth.distance * 100).toFixed(1)}%`;
+  if (ba) ba.classList.toggle('on', sig.armsRaised || sig.approaching);
+  if (bf) bf.textContent = sig.faceCount > 0
+    ? `${sig.faceCount} face${sig.faceCount > 1 ? 's' : ''} detected` : '';
+}
 
 /* ─── Auto-slow rotation (stops on user touch) ───────────────────────────── */
 
@@ -135,6 +279,7 @@ function animate() {
 
   animateDust(dust, t, dt);
   controls.update();
+  reactToPresence(detector.signal, dt, t);
   fx.tick(dt);
   fx.composer.render();
 }

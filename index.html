@@ -9,6 +9,18 @@
       html, body { width: 100%; height: 100%; background: #000; overflow: hidden; }
       canvas { display: block; }
 
+      /* ── Top hint ─────────────────────────────────────────────────────────── */
+      #hint {
+        position: fixed;
+        top: 22px;
+        left: 22px;
+        font: 12px/1.6 system-ui, sans-serif;
+        color: rgba(160, 185, 255, 0.28);
+        pointer-events: none;
+        letter-spacing: 0.03em;
+      }
+
+      /* ── Bottom-right: download button ───────────────────────────────────── */
       #ui {
         position: fixed;
         bottom: 28px;
@@ -29,28 +41,13 @@
         letter-spacing: 0.02em;
         transition: background 0.2s, border-color 0.2s, transform 0.1s;
       }
-      .ui-btn:hover {
-        background: rgba(18, 28, 80, 0.8);
-        border-color: rgba(100, 150, 255, 0.55);
-      }
+      .ui-btn:hover  { background: rgba(18, 28, 80, 0.8); border-color: rgba(100, 150, 255, 0.55); }
       .ui-btn:active { transform: scale(0.97); }
 
-      #hint {
-        position: fixed;
-        top: 22px;
-        left: 22px;
-        font: 12px/1.6 system-ui, sans-serif;
-        color: rgba(160, 185, 255, 0.28);
-        pointer-events: none;
-        letter-spacing: 0.03em;
-      }
-
+      /* ── Loading overlay ──────────────────────────────────────────────────── */
       #loading {
-        position: fixed;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        position: fixed; inset: 0;
+        display: flex; align-items: center; justify-content: center;
         background: #000;
         color: rgba(160, 185, 255, 0.5);
         font: 13px system-ui, sans-serif;
@@ -60,14 +57,201 @@
         z-index: 20;
       }
       #loading.hidden { opacity: 0; }
+
+      /* ── Camera panel — bottom-left ───────────────────────────────────────── */
+      #cam-panel {
+        position: fixed;
+        bottom: 28px;
+        left: 28px;
+        z-index: 10;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        font: 12px/1 system-ui, sans-serif;
+        color: rgba(180, 205, 255, 0.7);
+        letter-spacing: 0.04em;
+      }
+
+      /* Status row */
+      #cam-header {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 0 2px;
+      }
+      #cam-dot {
+        width: 7px; height: 7px;
+        border-radius: 50%;
+        background: rgba(80, 120, 255, 0.3);
+        flex-shrink: 0;
+        transition: background 0.4s;
+      }
+      #cam-dot.active   { background: #4cffb8; box-shadow: 0 0 6px #4cffb8; }
+      #cam-dot.loading  { background: #ffcc44; animation: blink 0.8s step-end infinite; }
+      #cam-dot.error    { background: #ff4466; }
+      @keyframes blink { 50% { opacity: 0; } }
+
+      #cam-label { flex: 1; }
+      #cam-ms    { color: rgba(160, 185, 255, 0.38); font-size: 11px; }
+
+      /* Mode buttons */
+      #cam-modes {
+        display: flex;
+        gap: 6px;
+      }
+      .cam-btn {
+        padding: 6px 13px;
+        font: 500 11px/1 system-ui, sans-serif;
+        letter-spacing: 0.07em;
+        color: rgba(160, 185, 255, 0.55);
+        background: rgba(8, 12, 38, 0.55);
+        border: 1px solid rgba(60, 90, 200, 0.22);
+        border-radius: 6px;
+        cursor: pointer;
+        backdrop-filter: blur(12px);
+        transition: background 0.15s, border-color 0.15s, color 0.15s;
+      }
+      .cam-btn:hover {
+        background: rgba(14, 22, 70, 0.75);
+        border-color: rgba(90, 130, 255, 0.4);
+        color: rgba(200, 220, 255, 0.85);
+      }
+      .cam-btn.active {
+        background: rgba(20, 35, 100, 0.75);
+        border-color: rgba(80, 140, 255, 0.6);
+        color: rgba(200, 225, 255, 1.0);
+      }
+
+      /* Signal bars */
+      #cam-bars {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        padding: 4px 2px 0;
+      }
+      .bar-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 10px;
+        color: rgba(140, 170, 255, 0.4);
+        letter-spacing: 0.05em;
+      }
+      .bar-row span { width: 52px; text-align: right; }
+      .bar-track {
+        flex: 1;
+        height: 3px;
+        background: rgba(255,255,255,0.06);
+        border-radius: 2px;
+        overflow: hidden;
+        min-width: 80px;
+      }
+      .bar-fill {
+        height: 100%;
+        width: 0%;
+        border-radius: 2px;
+        background: rgba(100, 160, 255, 0.7);
+        transition: width 0.1s ease-out;
+      }
+      #bar-approaching {
+        font-size: 10px;
+        color: rgba(140, 170, 255, 0.4);
+        letter-spacing: 0.05em;
+        padding-left: 62px;
+        transition: color 0.3s;
+      }
+      #bar-approaching.on { color: #4cffb8; }
+
+      /* Faces badge */
+      #cam-faces {
+        font-size: 10px;
+        color: rgba(140, 170, 255, 0.4);
+        padding-left: 62px;
+      }
+
+      /* ── Camera preview ───────────────────────────────────────────────────── */
+      #cam-preview-wrap {
+        position: relative;
+        width: 160px;
+        height: 90px;
+        border-radius: 6px;
+        overflow: hidden;
+        border: 1px solid rgba(60, 90, 200, 0.22);
+        background: rgba(4, 6, 20, 0.7);
+        display: none;           /* shown by JS when camera is active */
+      }
+      #cam-preview {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        transform: scaleX(-1);   /* mirror so it feels like a selfie */
+        opacity: 0.85;
+      }
+      #cam-preview-toggle {
+        position: absolute;
+        top: 5px; right: 5px;
+        width: 18px; height: 18px;
+        background: rgba(8, 12, 38, 0.75);
+        border: 1px solid rgba(80, 120, 255, 0.25);
+        border-radius: 4px;
+        cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 9px;
+        color: rgba(160, 185, 255, 0.55);
+        backdrop-filter: blur(8px);
+        transition: background 0.15s;
+        line-height: 1;
+        padding: 0;
+      }
+      #cam-preview-toggle:hover {
+        background: rgba(18, 28, 80, 0.9);
+        color: rgba(200, 220, 255, 0.9);
+      }
     </style>
   </head>
   <body>
     <div id="loading">BUILDING SCENE…</div>
     <div id="hint">Drag to orbit · Scroll to zoom · Right-drag to pan</div>
+
+    <!-- Bottom-right -->
     <div id="ui">
       <button class="ui-btn" id="btn-download">⬇ Download HD</button>
     </div>
+
+    <!-- Bottom-left: camera panel -->
+    <div id="cam-panel">
+      <!-- Preview (shown only when camera is active) -->
+      <div id="cam-preview-wrap">
+        <video id="cam-preview" autoplay muted playsinline></video>
+        <button id="cam-preview-toggle" title="Hide preview">✕</button>
+      </div>
+
+      <div id="cam-header">
+        <div id="cam-dot"></div>
+        <span id="cam-label">Camera off</span>
+        <span id="cam-ms"></span>
+      </div>
+      <div id="cam-modes">
+        <button class="cam-btn active" data-mode="off">OFF</button>
+        <button class="cam-btn" data-mode="motion">MOTION</button>
+        <button class="cam-btn" data-mode="face">FACE</button>
+        <button class="cam-btn" data-mode="pose">POSE</button>
+      </div>
+      <div id="cam-bars">
+        <div class="bar-row">
+          <span>motion</span>
+          <div class="bar-track"><div id="bar-motion" class="bar-fill"></div></div>
+        </div>
+        <div class="bar-row">
+          <span>distance</span>
+          <div class="bar-track"><div id="bar-dist" class="bar-fill"></div></div>
+        </div>
+        <div id="bar-approaching">→ approaching</div>
+        <div id="cam-faces"></div>
+      </div>
+    </div>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
