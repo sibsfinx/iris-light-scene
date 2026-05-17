@@ -277,6 +277,24 @@ function buildPetalGeo(cfg: PetalConfig, isStandard = false): THREE.BufferGeomet
    MATERIALS
    ═══════════════════════════════════════════════════════════════════════════ */
 
+// Emissive gradient: bright at petal base (u=0, flower center) → black at tip (u=1)
+function makeCenterGlowMap(): THREE.CanvasTexture {
+  const W = 256, H = 4;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d')!;
+  const g = ctx.createLinearGradient(0, 0, W, 0);
+  g.addColorStop(0.00, 'rgb(60, 90, 255)');   // base — strong blue-violet
+  g.addColorStop(0.25, 'rgb(30, 50, 180)');
+  g.addColorStop(0.55, 'rgb(8,  18,  60)');
+  g.addColorStop(1.00, 'rgb(0,   0,   0)');   // tip — no emission
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+  return new THREE.CanvasTexture(c);
+}
+
+const centerGlowMap = makeCenterGlowMap();
+
 export function makePetalMaterial(
   envMap: THREE.Texture,
   roughMap: THREE.CanvasTexture,
@@ -284,8 +302,9 @@ export function makePetalMaterial(
 ): THREE.MeshPhysicalMaterial {
   return new THREE.MeshPhysicalMaterial({
     color: new THREE.Color(0.02, 0.04, 0.10),      // near-black dark navy glass
-    emissive: new THREE.Color(0.04, 0.08, 0.28),   // soft blue-violet inner glow
-    emissiveIntensity: 0.18,
+    emissive: new THREE.Color(1, 1, 1),             // tint comes from the map
+    emissiveMap: centerGlowMap,
+    emissiveIntensity: 0.55,                        // center blazes, tip stays dark
     transmission: 0.85,
     opacity: 1.0,
     transparent: true,
