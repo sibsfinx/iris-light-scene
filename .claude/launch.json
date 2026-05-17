@@ -6,6 +6,12 @@
       "runtimeExecutable": "sh",
       "runtimeArgs": ["dev.sh"],
       "port": 7341
+    },
+    {
+      "name": "iris-mockup",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-p", "7342", "mockup"],
+      "port": 7342
     }
   ]
 }
