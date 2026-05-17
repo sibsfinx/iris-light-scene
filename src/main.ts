@@ -83,29 +83,80 @@ scene.add(flower4);
 // Environment
 scene.add(createRockBase());
 
-// ── Vein flash lights — tiny PointLights pressed near petal surfaces ─────────
-// They are invisible (no visible source geometry) but their tight specular
-// catches vein ridges (different roughness/normal) and flashes a dot there.
-const veinFlashLights: { light: THREE.PointLight; speed: number; phase: number }[] = [];
+// ── Vein bokeh flares — hexagonal sprite discs that pulse at petal positions ──
+// No lights → no square bloom artifacts. The sprite shape IS the bokeh glare.
 
-(function buildVeinLights() {
-  // 6 lights: one per petal (alternating falls/standards at 60° steps)
-  // Positioned at r=0.38 from center, skimming the petal body
+function makeBokehTex(): THREE.CanvasTexture {
+  const sz = 128, r = sz / 2;
+  const c = document.createElement('canvas');
+  c.width = sz; c.height = sz;
+  const ctx = c.getContext('2d')!;
+
+  // Clip to hexagon
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 - Math.PI / 6;
+    const x = r + Math.cos(a) * r * 0.92;
+    const y = r + Math.sin(a) * r * 0.92;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+
+  // Soft glow fill inside hex
+  const outer = ctx.createRadialGradient(r, r, r * 0.05, r, r, r * 0.92);
+  outer.addColorStop(0,    'rgba(220, 235, 255, 1.0)');
+  outer.addColorStop(0.25, 'rgba(160, 200, 255, 0.7)');
+  outer.addColorStop(0.65, 'rgba( 80, 140, 255, 0.2)');
+  outer.addColorStop(1,    'rgba(  0,   0,   0, 0.0)');
+  ctx.fillStyle = outer;
+  ctx.fill();
+
+  // Thin bright hex ring
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 - Math.PI / 6;
+    const x = r + Math.cos(a) * r * 0.88;
+    const y = r + Math.sin(a) * r * 0.88;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.strokeStyle = 'rgba(200, 220, 255, 0.45)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  return new THREE.CanvasTexture(c);
+}
+
+const bokehTex = makeBokehTex();
+
+const veinFlashSprites: { sprite: THREE.Sprite; speed: number; phase: number }[] = [];
+
+(function buildBokehFlares() {
   const positions: [number, number, number][] = [
-    [ 0.00,  0.28,  0.38],   // fall front
-    [ 0.33,  0.42, -0.22],   // standard right
-    [ 0.36,  0.18,  0.18],   // fall right
-    [-0.33,  0.42, -0.22],   // standard left
-    [-0.36,  0.18,  0.18],   // fall left
-    [ 0.00,  0.55, -0.38],   // standard back
+    [ 0.00,  0.28,  0.38],
+    [ 0.33,  0.42, -0.22],
+    [ 0.36,  0.18,  0.18],
+    [-0.33,  0.42, -0.22],
+    [-0.36,  0.18,  0.18],
+    [ 0.00,  0.55, -0.38],
   ];
   positions.forEach(([x, y, z], i) => {
-    const light = new THREE.PointLight(0xc8dcff, 0, 0.9, 2.2);
-    light.position.set(x, y, z);
-    heroFlower.add(light);   // child of heroFlower so it rotates with it
-    veinFlashLights.push({
-      light,
-      speed: 0.55 + (i % 3) * 0.18,          // varied flash cadence
+    const mat = new THREE.SpriteMaterial({
+      map: bokehTex,
+      transparent: true,
+      opacity: 0,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      depthTest: false,
+      color: 0xb0d0ff,
+    });
+    const sprite = new THREE.Sprite(mat);
+    sprite.position.set(x, y, z);
+    sprite.scale.setScalar(0.13);
+    heroFlower.add(sprite);
+    veinFlashSprites.push({
+      sprite,
+      speed: 0.55 + (i % 3) * 0.18,
       phase: (i / positions.length) * Math.PI * 2,
     });
   });
@@ -231,10 +282,10 @@ function animate() {
     flower4.rotation.y    = 1.1  + t * 0.04;
   }
 
-  // Vein flash — each light fires a sharp cubic spike then returns to 0
-  veinFlashLights.forEach(({ light, speed, phase }) => {
+  // Bokeh flares — cubic spike opacity, stays at 0 between peaks
+  veinFlashSprites.forEach(({ sprite, speed, phase }) => {
     const s = Math.sin(t * speed + phase);
-    light.intensity = s > 0 ? s * s * s * 7 : 0;  // cubic → sharp, fast peaks
+    (sprite.material as THREE.SpriteMaterial).opacity = s > 0 ? s * s * s : 0;
   });
 
   animateDust(dust, t, dt);
