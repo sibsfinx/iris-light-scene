@@ -117,6 +117,25 @@ export function createFogPlanes(): THREE.Group {
   return group;
 }
 
+/* ─── Round sprite for dust particles ───────────────────────────────────── */
+
+function makeRoundSprite(): THREE.CanvasTexture {
+  const sz = 32;
+  const c = document.createElement('canvas');
+  c.width = sz; c.height = sz;
+  const ctx = c.getContext('2d')!;
+  const r = sz / 2;
+  const g = ctx.createRadialGradient(r, r, 0, r, r, r);
+  g.addColorStop(0,   'rgba(255,255,255,1.0)');
+  g.addColorStop(0.4, 'rgba(255,255,255,0.6)');
+  g.addColorStop(1,   'rgba(0,0,0,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, sz, sz);
+  return new THREE.CanvasTexture(c);
+}
+
+const roundSprite = makeRoundSprite();
+
 /* ─── Dust / floating particles ──────────────────────────────────────────── */
 
 export function createDustParticles(): THREE.Group {
@@ -136,6 +155,8 @@ export function createDustParticles(): THREE.Group {
     color: 0xc0d4ff,
     size: 0.004,
     sizeAttenuation: true,
+    map: roundSprite,
+    alphaMap: roundSprite,
     transparent: true,
     opacity: 0.45,
     blending: THREE.AdditiveBlending,
@@ -157,6 +178,8 @@ export function createDustParticles(): THREE.Group {
     color: 0xc8deff,
     size: 0.007,
     sizeAttenuation: true,
+    map: roundSprite,
+    alphaMap: roundSprite,
     transparent: true,
     opacity: 0.45,
     blending: THREE.AdditiveBlending,
@@ -362,11 +385,41 @@ function drawSky(ctx: CanvasRenderingContext2D, W: number, H: number, p: SkyPale
   ctx.fillRect(0, 0, W, H);
 }
 
+/* ─── Uniform IBL canvas (no bright zones = no PMREM cube-face seam artefacts) */
+
+function buildIBLCanvas(): HTMLCanvasElement {
+  const W = 512, H = 256;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d')!;
+  // Simple vertical gradient — absolutely uniform, zero high-contrast zones
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0,   '#0c1830');
+  g.addColorStop(0.5, '#060e1e');
+  g.addColorStop(1,   '#020408');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+  return c;
+}
+
 export function buildSkyEnv(renderer: THREE.WebGLRenderer): {
   envMap: THREE.Texture;
   sky: THREE.CanvasTexture;
   set(preset: SkyPreset): void;
 } {
+  // IBL — uniform gradient, used only for reflections (never shown directly)
+  const iblCanvas = buildIBLCanvas();
+  const iblTex = new THREE.CanvasTexture(iblCanvas);
+  iblTex.mapping = THREE.EquirectangularReflectionMapping;
+  iblTex.colorSpace = THREE.SRGBColorSpace;
+
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  pmrem.compileEquirectangularShader();
+  const envMap = pmrem.fromEquirectangular(iblTex).texture;
+  pmrem.dispose();
+  iblTex.dispose();
+
+  // Background sky — pretty gradient, shown as scene.background
   const W = 2048, H = 1024;
   const canvas = document.createElement('canvas');
   canvas.width = W; canvas.height = H;
@@ -377,11 +430,6 @@ export function buildSkyEnv(renderer: THREE.WebGLRenderer): {
   const sky = new THREE.CanvasTexture(canvas);
   sky.mapping = THREE.EquirectangularReflectionMapping;
   sky.colorSpace = THREE.SRGBColorSpace;
-
-  const pmrem = new THREE.PMREMGenerator(renderer);
-  pmrem.compileEquirectangularShader();
-  const envMap = pmrem.fromEquirectangular(sky).texture;
-  pmrem.dispose();
 
   function set(preset: SkyPreset) {
     drawSky(ctx, W, H, SKY_PALETTES[preset]);

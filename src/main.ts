@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
-import { buildSkyEnv, createRockBase, createGround, createFogPlanes, createDustParticles, animateDust, SkyPreset } from './env';
+import { buildSkyEnv, createRockBase, createDustParticles, animateDust, SkyPreset } from './env';
 import { createIrisFlower, generateVeinMaps } from './iris';
 import { setupLights } from './lights';
 import { buildComposer } from './fx';
@@ -82,8 +82,6 @@ scene.add(flower4);
 
 // Environment
 scene.add(createRockBase());
-scene.add(createGround());
-scene.add(createFogPlanes());
 
 const dust = createDustParticles();
 scene.add(dust);
@@ -204,15 +202,6 @@ function animate() {
     flower3.rotation.y    = -0.42 + t * 0.06;
     flower4.rotation.y    = 1.1  + t * 0.04;
   }
-
-  // Subtle breathing on fog planes
-  scene.children.forEach(child => {
-    if (child.userData['isFog']) {
-      child.children.forEach((p, i) => {
-        p.position.y += Math.sin(t * 0.25 + i) * 0.0003;
-      });
-    }
-  });
 
   animateDust(dust, t, dt);
   controls.update();
