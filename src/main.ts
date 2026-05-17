@@ -145,6 +145,38 @@ dofBtn.addEventListener('click', () => {
   dofBtn.textContent = dofEnabled ? 'DOF  ON' : 'DOF OFF';
 });
 
+// Vein toggle — collect all petal MeshPhysicalMaterials after scene build
+const petalMats: THREE.MeshPhysicalMaterial[] = [];
+[heroFlower, flower2, flower3, flower4].forEach(f => {
+  f.traverse(obj => {
+    if (obj instanceof THREE.Mesh) {
+      const m = obj.material as THREE.MeshPhysicalMaterial;
+      if (m && m.isMeshPhysicalMaterial && !petalMats.includes(m)) {
+        m.userData['normalScaleX'] = m.normalScale.x;
+        m.userData['normalScaleY'] = m.normalScale.y;
+        m.userData['roughMap']     = m.roughnessMap;
+        petalMats.push(m);
+      }
+    }
+  });
+});
+
+let veinsOn = true;
+const veinsBtn = document.getElementById('toggle-veins')!;
+veinsBtn.addEventListener('click', () => {
+  veinsOn = !veinsOn;
+  petalMats.forEach(m => {
+    m.normalScale.set(
+      veinsOn ? m.userData['normalScaleX'] : 0,
+      veinsOn ? m.userData['normalScaleY'] : 0,
+    );
+    m.roughnessMap = veinsOn ? m.userData['roughMap'] : null;
+    m.needsUpdate  = true;
+  });
+  veinsBtn.classList.toggle('on', veinsOn);
+  veinsBtn.textContent = veinsOn ? 'Veins  ON' : 'Veins OFF';
+});
+
 // Controls panel open/close
 const panel     = document.getElementById('ctrl-panel')!;
 const ctrlBtn   = document.getElementById('btn-controls')!;
