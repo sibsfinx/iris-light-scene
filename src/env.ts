@@ -74,40 +74,52 @@ export function createGround(): THREE.Mesh {
 
 export function createFogPlanes(): THREE.Group {
   const group = new THREE.Group();
+  group.userData['isFog'] = true;
 
-  const configs = [
-    { pos: [0.5, 1.4, -2.0],  rot: [-0.28, -0.5, 0.12], sc: [1.6, 3.5, 1], op: 0.035, warm: false },
-    { pos: [-0.4, 0.9, -2.4], rot: [-0.18,  0.38, -0.1], sc: [1.2, 3.0, 1], op: 0.030, warm: false },
-    { pos: [0.1, 1.8, -1.8],  rot: [-0.38,  0.0,  0.07], sc: [1.1, 2.6, 1], op: 0.022, warm: true  },
-    { pos: [-0.2, -0.3, -2.8],rot: [0, 0.1, 0],          sc: [4.5, 4.5, 1], op: 0.05,  warm: false },
-    { pos: [1.2, 2.0, -1.5],  rot: [-0.2, -0.8, 0.15],   sc: [0.9, 2.2, 1], op: 0.025, warm: true  },
-  ] as const;
-
-  for (const cfg of configs) {
-    const geo = new THREE.PlaneGeometry(1, 1);
-    const color = cfg.warm
-      ? new THREE.Color(0.5, 0.32, 0.08)
-      : new THREE.Color(0.15, 0.28, 0.72);
-    const mat = new THREE.MeshBasicMaterial({
-      color,
-      transparent: true,
-      opacity: cfg.op,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      side: THREE.DoubleSide,
-    });
-    const m = new THREE.Mesh(geo, mat);
-    m.position.set(...cfg.pos);
-    m.rotation.set(...cfg.rot);
-    m.scale.set(...cfg.sc);
-    group.add(m);
+  function shaft(color: number, opacity: number): THREE.Mesh {
+    return new THREE.Mesh(
+      new THREE.PlaneGeometry(1, 1),
+      new THREE.MeshBasicMaterial({
+        color: new THREE.Color(color),
+        transparent: true, opacity,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false, side: THREE.DoubleSide,
+      })
+    );
   }
 
+  // ── Right god-ray shaft (upper-right → lower-left) ─────────────────────
+  const sr = shaft(0xd0e8ff, 0.048);
+  sr.position.set(1.1, 1.5, -0.4);
+  sr.rotation.set(0.32, -0.50, 0.58);
+  sr.scale.set(0.5, 5.5, 1);
+  group.add(sr);
+
+  const srGlow = shaft(0x8ab0d8, 0.018);
+  srGlow.position.set(0.9, 1.3, -0.2);
+  srGlow.rotation.set(0.28, -0.46, 0.54);
+  srGlow.scale.set(1.6, 5.2, 1);
+  group.add(srGlow);
+
+  // ── Left god-ray shaft (upper-left → lower-right) ──────────────────────
+  const sl = shaft(0xb0ccee, 0.030);
+  sl.position.set(-0.8, 1.3, -0.5);
+  sl.rotation.set(0.26, 0.46, -0.52);
+  sl.scale.set(0.4, 4.5, 1);
+  group.add(sl);
+
+  // ── General haze ───────────────────────────────────────────────────────
+  const haze = shaft(0x060e2e, 0.038);
+  haze.position.set(0, -0.2, -2.8);
+  haze.scale.set(5, 5, 1);
+  group.add(haze);
+
   // Black backdrop
-  const bdGeo = new THREE.PlaneGeometry(8, 8);
-  const bdMat = new THREE.MeshBasicMaterial({ color: 0x000000, depthWrite: false });
-  const bd = new THREE.Mesh(bdGeo, bdMat);
-  bd.position.set(0, 0, -3.5);
+  const bd = new THREE.Mesh(
+    new THREE.PlaneGeometry(8, 8),
+    new THREE.MeshBasicMaterial({ color: 0x000000, depthWrite: false })
+  );
+  bd.position.set(0, 0, -3.6);
   group.add(bd);
 
   return group;
@@ -129,36 +141,36 @@ export function createDustParticles(): THREE.Group {
   const dustGeo = new THREE.BufferGeometry();
   dustGeo.setAttribute('position', new THREE.Float32BufferAttribute(dustPos, 3));
   const dustMat = new THREE.PointsMaterial({
-    color: 0xb8ccff,
-    size: 0.005,
+    color: 0xc0d4ff,
+    size: 0.004,
     sizeAttenuation: true,
     transparent: true,
-    opacity: 0.65,
+    opacity: 0.45,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   });
   group.add(new THREE.Points(dustGeo, dustMat));
 
-  // Larger warm specks (gold dust visible in refs)
-  const goldCount = 80;
-  const goldPos = new Float32Array(goldCount * 3);
-  for (let i = 0; i < goldCount; i++) {
-    goldPos[i * 3 + 0] = (Math.random() - 0.5) * 4;
-    goldPos[i * 3 + 1] = Math.random() * 4 - 1;
-    goldPos[i * 3 + 2] = (Math.random() - 0.5) * 3;
+  // Cool silver micro-specks (lit by the god-rays)
+  const silverCount = 120;
+  const silverPos = new Float32Array(silverCount * 3);
+  for (let i = 0; i < silverCount; i++) {
+    silverPos[i * 3 + 0] = (Math.random() - 0.5) * 4;
+    silverPos[i * 3 + 1] = Math.random() * 4 - 1;
+    silverPos[i * 3 + 2] = (Math.random() - 0.5) * 3;
   }
-  const goldGeo = new THREE.BufferGeometry();
-  goldGeo.setAttribute('position', new THREE.Float32BufferAttribute(goldPos, 3));
-  const goldMat = new THREE.PointsMaterial({
-    color: 0xd4901a,
-    size: 0.012,
+  const silverGeo = new THREE.BufferGeometry();
+  silverGeo.setAttribute('position', new THREE.Float32BufferAttribute(silverPos, 3));
+  const silverMat = new THREE.PointsMaterial({
+    color: 0xc8deff,
+    size: 0.007,
     sizeAttenuation: true,
     transparent: true,
-    opacity: 0.55,
+    opacity: 0.45,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   });
-  group.add(new THREE.Points(goldGeo, goldMat));
+  group.add(new THREE.Points(silverGeo, silverMat));
 
   return group;
 }

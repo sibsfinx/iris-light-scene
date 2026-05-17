@@ -283,47 +283,44 @@ export function makePetalMaterial(
   normalMap: THREE.CanvasTexture
 ): THREE.MeshPhysicalMaterial {
   return new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color(0.022, 0.042, 0.13),    // deep navy glass body
-    transmission: 0.60,
+    color: new THREE.Color(0.006, 0.012, 0.06),    // near-black with deep navy tint
+    transmission: 0.45,
     opacity: 1.0,
     transparent: true,
-    thickness: 0.22,
-    roughness: 0.007,
+    thickness: 0.32,
+    roughness: 0.016,
     roughnessMap: roughMap,
     normalMap: normalMap,
-    normalScale: new THREE.Vector2(5.5, 5.5),      // strong vein ridges
+    normalScale: new THREE.Vector2(7.0, 7.0),
     metalness: 0.0,
-    ior: 1.52,
-    specularIntensity: 1.8,
-    specularColor: new THREE.Color(0.85, 0.92, 1.0),
-    attenuationColor: new THREE.Color(0.01, 0.04, 0.55),
-    attenuationDistance: 0.14,
-    iridescence: 0.65,
+    ior: 1.55,
+    specularIntensity: 2.2,
+    specularColor: new THREE.Color(0.95, 0.98, 1.0),  // near-white specular
+    attenuationColor: new THREE.Color(0.008, 0.025, 0.45),
+    attenuationDistance: 0.08,
+    iridescence: 0.50,
     iridescenceIOR: 1.45,
-    iridescenceThicknessRange: [100, 420] as [number, number],
-    clearcoat: 0.55,
-    clearcoatRoughness: 0.004,
-    sheen: 0.05,
-    sheenColor: new THREE.Color(0.5, 0.65, 1.0),
+    iridescenceThicknessRange: [140, 500] as [number, number],
+    clearcoat: 0.70,
+    clearcoatRoughness: 0.003,
+    sheen: 0.0,
     side: THREE.DoubleSide,
     envMap,
-    envMapIntensity: 0.45,
+    envMapIntensity: 0.25,
   });
 }
 
 export function makeStemMaterial(envMap: THREE.Texture): THREE.MeshPhysicalMaterial {
   return new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color(0.04, 0.16, 0.06),
-    roughness: 0.5,
+    color: new THREE.Color(0.008, 0.022, 0.012),   // near-black dark green
+    roughness: 0.7,
     metalness: 0.0,
-    transmission: 0.18,
-    thickness: 0.4,
-    ior: 1.38,
-    attenuationColor: new THREE.Color(0.06, 0.5, 0.1),
-    attenuationDistance: 0.7,
+    transmission: 0.05,
+    thickness: 0.3,
+    ior: 1.35,
     side: THREE.DoubleSide,
     envMap,
-    envMapIntensity: 0.15,
+    envMapIntensity: 0.05,
   });
 }
 
@@ -388,19 +385,21 @@ export function createIrisFlower(
 
   // ── Style arms (3 × small horizontal crested structures) ─────────────────
   const styleMat = petalMat.clone();
-  styleMat.color = new THREE.Color(0.88, 0.92, 1.0);
-  styleMat.iridescence = 0.8;
+  styleMat.color = new THREE.Color(0.04, 0.08, 0.22);
+  styleMat.iridescence = 0.3;
+  styleMat.transmission = 0.38;
+  styleMat.envMapIntensity = 0.2;
 
   const styleGeo = buildPetalGeo({
-    length: 0.28,
-    maxWidth: 0.10,
-    droop: 0.15,
-    cup: 0.9,
-    waviness: 0.03,
-    edgeRuffle: 0.55,
-    twist: 0.06,
-    uSegs: s(18),
-    vSegs: s(10),
+    length: 0.22,
+    maxWidth: 0.07,
+    droop: 0.18,
+    cup: 1.1,
+    waviness: 0.02,
+    edgeRuffle: 0.4,
+    twist: 0.05,
+    uSegs: s(14),
+    vSegs: s(8),
   });
 
   for (let k = 0; k < 3; k++) {
@@ -411,8 +410,8 @@ export function createIrisFlower(
     flower.add(arm);
   }
 
-  // ── Stem + 2 bracts ───────────────────────────────────────────────────────
-  if (detail > 0.4) {
+  // ── Stem + 2 bracts (hidden — breaks dark atmosphere) ────────────────────
+  if (false && detail > 0.9) {
     const stemMat = makeStemMaterial(envMap);
     const curve = new THREE.CatmullRomCurve3([
       new THREE.Vector3(0, -0.05, 0),

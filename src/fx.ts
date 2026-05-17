@@ -101,7 +101,7 @@ export function buildComposer(
   composer.addPass(bokeh);
 
   // Bloom — very tight threshold, only absolute brightest vein lines glow
-  const bloom = new UnrealBloomPass(new THREE.Vector2(w, h), 0.75, 0.22, 0.88);
+  const bloom = new UnrealBloomPass(new THREE.Vector2(w, h), 0.48, 0.14, 0.94);
   composer.addPass(bloom);
 
   // Filmic grade
