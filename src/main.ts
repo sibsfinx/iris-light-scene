@@ -91,14 +91,14 @@ const flareSwarms: THREE.Points[] = [];
 [heroFlower, flower2, flower3, flower4].forEach(f => f.updateWorldMatrix(true, true));
 
 const flareConfigs: [THREE.Group, number, number, number][] = [
-  [heroFlower, 6,    0xc8dcff, 0.026],
-  [flower2,    10,   0xb8ceff, 0.020],
-  [flower3,    14,   0xacc4ff, 0.016],
-  [flower4,    20,   0xa4bcf8, 0.013],
+  [heroFlower, 12,   0xc8dcff, 0.005],
+  [flower2,    20,   0xb8ceff, 0.004],
+  [flower3,    28,   0xacc4ff, 0.003],
+  [flower4,    36,   0xa4bcf8, 0.003],
 ];
 
 flareConfigs.forEach(([f, stride, color, size], i) => {
-  const swarm = createFlowerFlares(f, { stride, color, size, opacity: 0.70, seed: 0x1234 + i * 0x111 });
+  const swarm = createFlowerFlares(f, { stride, color, size, opacity: 0.50, seed: 0x1234 + i * 0x111 });
   scene.add(swarm);
   flareSwarms.push(swarm);
 });
