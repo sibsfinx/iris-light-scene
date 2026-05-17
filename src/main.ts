@@ -129,7 +129,13 @@ function makeBokehTex(): THREE.CanvasTexture {
 
 const bokehTex = makeBokehTex();
 
-const veinFlashSprites: { sprite: THREE.Sprite; speed: number; phase: number }[] = [];
+interface VeinFlare {
+  sprite: THREE.Sprite;
+  light: THREE.PointLight;
+  speed: number;
+  phase: number;
+}
+const veinFlashSprites: VeinFlare[] = [];
 
 (function buildBokehFlares() {
   const positions: [number, number, number][] = [
@@ -141,6 +147,7 @@ const veinFlashSprites: { sprite: THREE.Sprite; speed: number; phase: number }[]
     [ 0.00,  0.55, -0.38],
   ];
   positions.forEach(([x, y, z], i) => {
+    // Bokeh sprite — gives the glare its hexagonal shape
     const mat = new THREE.SpriteMaterial({
       map: bokehTex,
       transparent: true,
@@ -154,8 +161,15 @@ const veinFlashSprites: { sprite: THREE.Sprite; speed: number; phase: number }[]
     sprite.position.set(x, y, z);
     sprite.scale.setScalar(0.13);
     heroFlower.add(sprite);
+
+    // PointLight — drives actual specular on vein ridges; kept sub-threshold
+    // so bloom never sees it (no square bloom artifact)
+    const light = new THREE.PointLight(0xc8dcff, 0, 0.85, 2.2);
+    light.position.set(x, y, z);
+    heroFlower.add(light);
+
     veinFlashSprites.push({
-      sprite,
+      sprite, light,
       speed: 0.55 + (i % 3) * 0.18,
       phase: (i / positions.length) * Math.PI * 2,
     });
@@ -282,10 +296,12 @@ function animate() {
     flower4.rotation.y    = 1.1  + t * 0.04;
   }
 
-  // Bokeh flares — cubic spike opacity, stays at 0 between peaks
-  veinFlashSprites.forEach(({ sprite, speed, phase }) => {
+  // Bokeh flares — sprite gives hex glare shape, light does vein specular
+  veinFlashSprites.forEach(({ sprite, light, speed, phase }) => {
     const s = Math.sin(t * speed + phase);
-    (sprite.material as THREE.SpriteMaterial).opacity = s > 0 ? s * s * s : 0;
+    const pulse = s > 0 ? s * s * s : 0;            // cubic → sharp peak
+    (sprite.material as THREE.SpriteMaterial).opacity = pulse;
+    light.intensity = pulse * 5;                     // sub-threshold: specular only, no bloom squares
   });
 
   animateDust(dust, t, dt);
