@@ -1,0 +1,20 @@
+[build]
+  command   = "pnpm build"
+  publish   = "dist"
+
+[build.environment]
+  NODE_VERSION          = "20"
+  COREPACK_ENABLE_STRICT = "0"
+  # Base URL is "/" on Netlify (no sub-path), so leave VITE_BASE_URL unset
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
