@@ -4,32 +4,27 @@ import * as THREE from 'three';
 
 export function createRockBase(): THREE.Group {
   const group = new THREE.Group();
-
   const mat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(0.03, 0.03, 0.038),
-    roughness: 0.92,
-    metalness: 0.04,
-    side: THREE.FrontSide,
+    color: new THREE.Color(0.025, 0.025, 0.032),
+    roughness: 0.94,
+    metalness: 0.03,
   });
 
-  // Main boulder
-  const geo = new THREE.IcosahedronGeometry(0.52, 2);
+  const geo = new THREE.IcosahedronGeometry(0.5, 2);
   displace(geo, 0.13);
   const rock = new THREE.Mesh(geo, mat);
-  rock.scale.set(1.6, 0.55, 1.2);
-  rock.position.set(0, -2.0, 0);
+  rock.scale.set(1.7, 0.5, 1.3);
+  rock.position.set(0, -2.02, 0);
   rock.rotation.y = 0.8;
   group.add(rock);
 
-  // Smaller surrounding rocks
-  const positions: [number, number, number, number, number][] = [
-    [0.8, -2.05, 0.3, 0.38, 1.2],
-    [-0.7, -2.1, -0.2, 0.28, 2.5],
-    [0.2, -2.12, -0.75, 0.22, 0.4],
-    [-0.4, -2.15, 0.6, 0.18, 1.8],
+  const smalls: [number, number, number, number, number][] = [
+    [0.75, -2.12, 0.28, 0.34, 1.2],
+    [-0.65, -2.18, -0.18, 0.24, 2.5],
+    [0.18, -2.2, -0.72, 0.2, 0.4],
+    [-0.38, -2.22, 0.55, 0.16, 1.9],
   ];
-
-  for (const [x, y, z, s, ry] of positions) {
+  for (const [x, y, z, s, ry] of smalls) {
     const g = new THREE.IcosahedronGeometry(0.5, 1);
     displace(g, 0.12);
     const m = new THREE.Mesh(g, mat);
@@ -38,126 +33,166 @@ export function createRockBase(): THREE.Group {
     m.rotation.y = ry;
     group.add(m);
   }
-
   return group;
 }
 
-function displace(geo: THREE.BufferGeometry, amount: number) {
+function displace(geo: THREE.BufferGeometry, amt: number) {
   const pos = geo.attributes['position'] as THREE.BufferAttribute;
   for (let i = 0; i < pos.count; i++) {
     const v = new THREE.Vector3().fromBufferAttribute(pos, i).normalize();
-    const noise = pseudoNoise(v.x * 3.7, v.y * 3.7, v.z * 3.7);
-    const r = 1 + noise * amount;
+    const n = noise3(v.x * 3.7, v.y * 3.7, v.z * 3.7);
+    const r = 1 + n * amt;
     pos.setXYZ(i, v.x * r, v.y * r, v.z * r);
   }
   pos.needsUpdate = true;
   geo.computeVertexNormals();
 }
 
-function pseudoNoise(x: number, y: number, z: number): number {
-  const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
-  const t = Math.sin(y * 269.5 + z * 183.3) * 43758.5453;
-  const u = Math.sin(z * 419.2 + x * 371.9) * 43758.5453;
-  return ((s - Math.floor(s)) + (t - Math.floor(t)) + (u - Math.floor(u))) / 3 - 0.5;
+function noise3(x: number, y: number, z: number) {
+  const a = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
+  const b = Math.sin(y * 269.5 + z * 183.3) * 43758.5453;
+  const c = Math.sin(z * 419.2 + x * 371.9) * 43758.5453;
+  return ((a - Math.floor(a)) + (b - Math.floor(b)) + (c - Math.floor(c))) / 3 - 0.5;
 }
 
-/* ─── Ground plane ───────────────────────────────────────────────────────── */
+/* ─── Ground ─────────────────────────────────────────────────────────────── */
 
 export function createGround(): THREE.Mesh {
-  const geo = new THREE.PlaneGeometry(12, 12, 1, 1);
+  const geo = new THREE.PlaneGeometry(14, 14);
   const mat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(0.02, 0.02, 0.025),
+    color: new THREE.Color(0.015, 0.015, 0.02),
     roughness: 1.0,
     metalness: 0.0,
   });
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.rotation.x = -Math.PI / 2;
-  mesh.position.y = -2.2;
-  return mesh;
+  const m = new THREE.Mesh(geo, mat);
+  m.rotation.x = -Math.PI / 2;
+  m.position.y = -2.3;
+  return m;
 }
 
-/* ─── Volumetric fog planes (god-ray approximation) ─────────────────────── */
+/* ─── Atmospheric fog planes ─────────────────────────────────────────────── */
 
 export function createFogPlanes(): THREE.Group {
   const group = new THREE.Group();
 
-  const planeConfigs: { pos: THREE.Vector3; rot: THREE.Euler; scale: THREE.Vector3; opacity: number }[] = [
-    {
-      pos: new THREE.Vector3(0.6, 1.2, -1.8),
-      rot: new THREE.Euler(-0.3, -0.55, 0.15),
-      scale: new THREE.Vector3(1.4, 3.2, 1),
-      opacity: 0.04,
-    },
-    {
-      pos: new THREE.Vector3(-0.3, 0.8, -2.2),
-      rot: new THREE.Euler(-0.2, 0.4, -0.1),
-      scale: new THREE.Vector3(1.1, 2.8, 1),
-      opacity: 0.035,
-    },
-    {
-      pos: new THREE.Vector3(0.1, 1.5, -1.5),
-      rot: new THREE.Euler(-0.4, 0.0, 0.08),
-      scale: new THREE.Vector3(1.0, 2.5, 1),
-      opacity: 0.028,
-    },
-    // Fill plane
-    {
-      pos: new THREE.Vector3(0, -0.5, -2.5),
-      rot: new THREE.Euler(0, 0, 0),
-      scale: new THREE.Vector3(4, 4, 1),
-      opacity: 0.06,
-    },
-  ];
+  const configs = [
+    { pos: [0.5, 1.4, -2.0],  rot: [-0.28, -0.5, 0.12], sc: [1.6, 3.5, 1], op: 0.035, warm: false },
+    { pos: [-0.4, 0.9, -2.4], rot: [-0.18,  0.38, -0.1], sc: [1.2, 3.0, 1], op: 0.030, warm: false },
+    { pos: [0.1, 1.8, -1.8],  rot: [-0.38,  0.0,  0.07], sc: [1.1, 2.6, 1], op: 0.022, warm: true  },
+    { pos: [-0.2, -0.3, -2.8],rot: [0, 0.1, 0],          sc: [4.5, 4.5, 1], op: 0.05,  warm: false },
+    { pos: [1.2, 2.0, -1.5],  rot: [-0.2, -0.8, 0.15],   sc: [0.9, 2.2, 1], op: 0.025, warm: true  },
+  ] as const;
 
-  for (const cfg of planeConfigs) {
+  for (const cfg of configs) {
     const geo = new THREE.PlaneGeometry(1, 1);
+    const color = cfg.warm
+      ? new THREE.Color(0.5, 0.32, 0.08)
+      : new THREE.Color(0.15, 0.28, 0.72);
     const mat = new THREE.MeshBasicMaterial({
-      color: new THREE.Color(0.2, 0.35, 0.9),
+      color,
       transparent: true,
-      opacity: cfg.opacity,
+      opacity: cfg.op,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
       side: THREE.DoubleSide,
     });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.copy(cfg.pos);
-    mesh.rotation.copy(cfg.rot);
-    mesh.scale.copy(cfg.scale);
-    group.add(mesh);
+    const m = new THREE.Mesh(geo, mat);
+    m.position.set(...cfg.pos);
+    m.rotation.set(...cfg.rot);
+    m.scale.set(...cfg.sc);
+    group.add(m);
   }
 
-  // Black flag / backdrop
-  const backdropGeo = new THREE.PlaneGeometry(6, 6);
-  const backdropMat = new THREE.MeshBasicMaterial({
-    color: 0x000000,
-    side: THREE.DoubleSide,
-    depthWrite: false,
-  });
-  const backdrop = new THREE.Mesh(backdropGeo, backdropMat);
-  backdrop.position.set(0, 0, -3);
-  group.add(backdrop);
+  // Black backdrop
+  const bdGeo = new THREE.PlaneGeometry(8, 8);
+  const bdMat = new THREE.MeshBasicMaterial({ color: 0x000000, depthWrite: false });
+  const bd = new THREE.Mesh(bdGeo, bdMat);
+  bd.position.set(0, 0, -3.5);
+  group.add(bd);
 
   return group;
 }
 
-/* ─── Dark custom environment map ────────────────────────────────────────── */
+/* ─── Dust / floating particles ──────────────────────────────────────────── */
+
+export function createDustParticles(): THREE.Group {
+  const group = new THREE.Group();
+
+  // Fine dust motes — tiny bright specks
+  const dustCount = 600;
+  const dustPos = new Float32Array(dustCount * 3);
+  for (let i = 0; i < dustCount; i++) {
+    dustPos[i * 3 + 0] = (Math.random() - 0.5) * 6;
+    dustPos[i * 3 + 1] = Math.random() * 5 - 1.5;
+    dustPos[i * 3 + 2] = (Math.random() - 0.5) * 5;
+  }
+  const dustGeo = new THREE.BufferGeometry();
+  dustGeo.setAttribute('position', new THREE.Float32BufferAttribute(dustPos, 3));
+  const dustMat = new THREE.PointsMaterial({
+    color: 0xb8ccff,
+    size: 0.005,
+    sizeAttenuation: true,
+    transparent: true,
+    opacity: 0.65,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  group.add(new THREE.Points(dustGeo, dustMat));
+
+  // Larger warm specks (gold dust visible in refs)
+  const goldCount = 80;
+  const goldPos = new Float32Array(goldCount * 3);
+  for (let i = 0; i < goldCount; i++) {
+    goldPos[i * 3 + 0] = (Math.random() - 0.5) * 4;
+    goldPos[i * 3 + 1] = Math.random() * 4 - 1;
+    goldPos[i * 3 + 2] = (Math.random() - 0.5) * 3;
+  }
+  const goldGeo = new THREE.BufferGeometry();
+  goldGeo.setAttribute('position', new THREE.Float32BufferAttribute(goldPos, 3));
+  const goldMat = new THREE.PointsMaterial({
+    color: 0xd4901a,
+    size: 0.012,
+    sizeAttenuation: true,
+    transparent: true,
+    opacity: 0.55,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  group.add(new THREE.Points(goldGeo, goldMat));
+
+  return group;
+}
+
+/* ─── Animate dust (call each frame) ────────────────────────────────────── */
+
+export function animateDust(dust: THREE.Group, elapsed: number, delta: number): void {
+  dust.children.forEach((child, idx) => {
+    if (!(child instanceof THREE.Points)) return;
+    const pos = child.geometry.attributes['position'] as THREE.BufferAttribute;
+    const speed = idx === 0 ? 0.025 : 0.018;
+    for (let i = 0; i < pos.count; i++) {
+      // Float upward, drift sideways
+      const y = pos.getY(i) + delta * speed;
+      const x = pos.getX(i) + Math.sin(elapsed * 0.15 + i * 0.7) * delta * 0.008;
+      pos.setY(i, y > 3.0 ? -1.5 : y);
+      pos.setX(i, x);
+    }
+    pos.needsUpdate = true;
+  });
+}
+
+/* ─── Dark environment map ───────────────────────────────────────────────── */
 
 export function buildEnvMap(renderer: THREE.WebGLRenderer): THREE.Texture {
   const pmrem = new THREE.PMREMGenerator(renderer);
   pmrem.compileEquirectangularShader();
-
-  // Very dark neutral environment – just enough for transmission reflections
   const envScene = new THREE.Scene();
-  envScene.background = new THREE.Color(0x020408);
-
-  // Faint directional fills baked into env
-  const top = new THREE.DirectionalLight(0x3050a0, 0.12);
-  top.position.set(0, 1, 0);
-  envScene.add(top);
-  const fill = new THREE.AmbientLight(0x050810, 0.08);
-  envScene.add(fill);
-
-  const envTex = pmrem.fromScene(envScene, 0.02).texture;
+  envScene.background = new THREE.Color(0x010306);
+  const t = new THREE.DirectionalLight(0x2040a0, 0.1);
+  t.position.set(0, 1, 0);
+  envScene.add(t);
+  envScene.add(new THREE.AmbientLight(0x030508, 0.06));
+  const tex = pmrem.fromScene(envScene, 0.02).texture;
   pmrem.dispose();
-  return envTex;
+  return tex;
 }

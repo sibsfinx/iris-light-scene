@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
-import { buildEnvMap, createRockBase, createGround, createFogPlanes } from './env';
-import { createIrisFlower } from './iris';
+import { buildEnvMap, createRockBase, createGround, createFogPlanes, createDustParticles, animateDust } from './env';
+import { createIrisFlower, generateVeinMaps } from './iris';
 import { setupLights } from './lights';
 import { buildComposer } from './fx';
 
@@ -11,75 +11,96 @@ import { buildComposer } from './fx';
 const renderer = new THREE.WebGLRenderer({
   antialias: true,
   powerPreference: 'high-performance',
-  preserveDrawingBuffer: true, // needed for HD download
+  preserveDrawingBuffer: true,
 });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.9;
+renderer.toneMappingExposure = 0.68;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
 /* ─── Scene ──────────────────────────────────────────────────────────────── */
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x010306);
-scene.fog = new THREE.FogExp2(0x010408, 0.18);
+scene.background = new THREE.Color(0x000306);
+scene.fog = new THREE.FogExp2(0x010510, 0.12);
 
-/* ─── Camera (100 mm equivalent ≈ FOV 24°) ──────────────────────────────── */
+/* ─── Camera ─────────────────────────────────────────────────────────────── */
 
 const camera = new THREE.PerspectiveCamera(28, window.innerWidth / window.innerHeight, 0.05, 40);
-camera.position.set(0.2, 0.7, 5.2);
-camera.lookAt(0, 0.08, 0);
+camera.position.set(0.1, 0.3, 4.0);
+camera.lookAt(0, 0.2, 0);
 
 /* ─── Controls ───────────────────────────────────────────────────────────── */
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.dampingFactor = 0.06;
-controls.minDistance = 1.2;
-controls.maxDistance = 9.0;
+controls.dampingFactor = 0.055;
+controls.minDistance = 1.0;
+controls.maxDistance = 12.0;
 controls.maxPolarAngle = Math.PI * 0.82;
-controls.target.set(0, 0.05, 0);
+controls.target.set(0, 0.08, 0);
 controls.update();
 
-/* ─── Environment map (needed for transmission reflections) ─────────────── */
+/* ─── Build scene assets ─────────────────────────────────────────────────── */
 
-const envMap = buildEnvMap(renderer);
+const envMap  = buildEnvMap(renderer);
 scene.environment = envMap;
 
-/* ─── Scene objects ──────────────────────────────────────────────────────── */
+const { roughMap, normalMap } = generateVeinMaps(1024, 1024);
 
 setupLights(scene);
 
-const iris = createIrisFlower(envMap);
-scene.add(iris);
+// ── Hero flower — front-centre, full detail ──────────────────────────────
+const heroFlower = createIrisFlower(envMap, roughMap, normalMap, { detail: 1.0 });
+heroFlower.position.set(0, 0, 0);
+scene.add(heroFlower);
 
-const rock = createRockBase();
-scene.add(rock);
+// ── Second flower — right-back, slight scale variation ───────────────────
+const flower2 = createIrisFlower(envMap, roughMap, normalMap, { detail: 0.65 });
+flower2.position.set(1.15, -0.25, -1.8);
+flower2.rotation.y = 0.55;
+flower2.scale.setScalar(0.88);
+scene.add(flower2);
 
-const ground = createGround();
-scene.add(ground);
+// ── Third flower — left-back, smaller, will blur in DOF ──────────────────
+const flower3 = createIrisFlower(envMap, roughMap, normalMap, { detail: 0.45 });
+flower3.position.set(-1.3, 0.1, -2.8);
+flower3.rotation.y = -0.42;
+flower3.scale.setScalar(0.78);
+scene.add(flower3);
 
-const fogPlanes = createFogPlanes();
-scene.add(fogPlanes);
+// ── Distant glimpse — far right, partial ─────────────────────────────────
+const flower4 = createIrisFlower(envMap, roughMap, normalMap, { detail: 0.35 });
+flower4.position.set(2.6, 0.2, -3.5);
+flower4.rotation.y = 1.1;
+flower4.scale.setScalar(0.7);
+scene.add(flower4);
+
+// Environment
+scene.add(createRockBase());
+scene.add(createGround());
+scene.add(createFogPlanes());
+
+const dust = createDustParticles();
+scene.add(dust);
 
 /* ─── Post-processing ────────────────────────────────────────────────────── */
 
 const fx = buildComposer(renderer, scene, camera);
 
-/* ─── Subtle iris rotation ───────────────────────────────────────────────── */
+/* ─── Auto-slow rotation (stops on user touch) ───────────────────────────── */
 
 let autoRotate = true;
 controls.addEventListener('start', () => { autoRotate = false; });
 
-/* ─── Resize handler ─────────────────────────────────────────────────────── */
+/* ─── Resize ─────────────────────────────────────────────────────────────── */
 
 window.addEventListener('resize', () => {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
+  const w = window.innerWidth, h = window.innerHeight;
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
@@ -92,19 +113,27 @@ const clock = new THREE.Clock();
 
 function animate() {
   requestAnimationFrame(animate);
-
   const dt = clock.getDelta();
-  const elapsed = clock.getElapsedTime();
+  const t  = clock.getElapsedTime();
 
+  // Gentle slow rotation of whole scene
   if (autoRotate) {
-    iris.rotation.y = elapsed * 0.08;
+    heroFlower.rotation.y = t * 0.07;
+    flower2.rotation.y    = 0.55 + t * 0.05;
+    flower3.rotation.y    = -0.42 + t * 0.06;
+    flower4.rotation.y    = 1.1  + t * 0.04;
   }
 
-  // Subtle fog plane drift
-  fogPlanes.children.forEach((child, i) => {
-    child.position.y += Math.sin(elapsed * 0.3 + i) * 0.0004;
+  // Subtle breathing on fog planes
+  scene.children.forEach(child => {
+    if (child.userData['isFog']) {
+      child.children.forEach((p, i) => {
+        p.position.y += Math.sin(t * 0.25 + i) * 0.0003;
+      });
+    }
   });
 
+  animateDust(dust, t, dt);
   controls.update();
   fx.tick(dt);
   fx.composer.render();
@@ -112,54 +141,49 @@ function animate() {
 
 animate();
 
-/* ─── Hide loading overlay ───────────────────────────────────────────────── */
+/* ─── Hide loader ────────────────────────────────────────────────────────── */
 
 setTimeout(() => {
-  const loading = document.getElementById('loading');
-  if (loading) loading.classList.add('hidden');
-}, 200);
+  const el = document.getElementById('loading');
+  if (el) el.classList.add('hidden');
+}, 300);
 
 /* ─── HD Download ────────────────────────────────────────────────────────── */
 
-document.getElementById('btn-download')!.addEventListener('click', () => {
-  downloadHD(3840, 2160);
+const dlBtn = document.getElementById('btn-download')!;
+dlBtn.addEventListener('click', () => {
+  dlBtn.textContent = '⏳ Rendering…';
+  dlBtn.setAttribute('disabled', 'true');
+  setTimeout(() => downloadHD(3840, 2160), 100);
 });
 
 function downloadHD(width: number, height: number) {
-  // Create a separate off-screen renderer at target resolution
-  const hdRenderer = new THREE.WebGLRenderer({
-    antialias: true,
-    preserveDrawingBuffer: true,
-  });
+  const hdRenderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
   hdRenderer.setPixelRatio(1);
   hdRenderer.setSize(width, height);
   hdRenderer.toneMapping = THREE.ACESFilmicToneMapping;
-  hdRenderer.toneMappingExposure = 0.85;
+  hdRenderer.toneMappingExposure = 1.05;
   hdRenderer.outputColorSpace = THREE.SRGBColorSpace;
-  hdRenderer.shadowMap.enabled = true;
-  hdRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
-  // Rebuild composer at HD resolution
-  const hdComposer = buildComposer(hdRenderer, scene, camera);
-  hdComposer.setSize(width, height);
 
   const hdCamera = camera.clone() as THREE.PerspectiveCamera;
   hdCamera.aspect = width / height;
   hdCamera.updateProjectionMatrix();
 
-  // Render one frame
-  hdComposer.composer.render();
+  const hdFx = buildComposer(hdRenderer, scene, hdCamera);
+  hdFx.setSize(width, height);
+  hdFx.composer.render();
 
-  // Export
-  const canvas = hdRenderer.domElement;
-  canvas.toBlob((blob) => {
+  hdRenderer.domElement.toBlob(blob => {
     if (!blob) return;
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `iris-3d-${width}x${height}.png`;
+    const a   = document.createElement('a');
+    a.href     = url;
+    a.download = `iris-crystal-${width}x${height}.png`;
     a.click();
     URL.revokeObjectURL(url);
     hdRenderer.dispose();
+
+    dlBtn.textContent = '⬇ Download HD';
+    dlBtn.removeAttribute('disabled');
   }, 'image/png');
 }
