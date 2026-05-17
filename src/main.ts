@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
-import { buildSkyEnv, createRockBase, createGround, createFogPlanes, createDustParticles, animateDust } from './env';
+import { buildSkyEnv, createRockBase, createGround, createFogPlanes, createDustParticles, animateDust, SkyPreset } from './env';
 import { createIrisFlower, generateVeinMaps } from './iris';
 import { setupLights } from './lights';
 import { buildComposer } from './fx';
@@ -18,7 +18,7 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.44;
+renderer.toneMappingExposure = 0.68;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
@@ -46,35 +46,35 @@ controls.update();
 
 /* ─── Build scene assets ─────────────────────────────────────────────────── */
 
-const { envMap, sky } = buildSkyEnv(renderer);
-scene.environment = envMap;
-scene.background  = sky;
+const skyEnv = buildSkyEnv(renderer);
+scene.environment = skyEnv.envMap;
+scene.background  = skyEnv.sky;
 
 const { roughMap, normalMap } = generateVeinMaps(1024, 1024);
 
 setupLights(scene);
 
 // ── Hero flower — front-centre, full detail ──────────────────────────────
-const heroFlower = createIrisFlower(envMap, roughMap, normalMap, { detail: 1.0 });
+const heroFlower = createIrisFlower(skyEnv.envMap, roughMap, normalMap, { detail: 1.0 });
 heroFlower.position.set(0, 0, 0);
 scene.add(heroFlower);
 
 // ── Second flower — right-back, slight scale variation ───────────────────
-const flower2 = createIrisFlower(envMap, roughMap, normalMap, { detail: 0.65 });
+const flower2 = createIrisFlower(skyEnv.envMap, roughMap, normalMap, { detail: 0.65 });
 flower2.position.set(1.15, -0.25, -1.8);
 flower2.rotation.y = 0.55;
 flower2.scale.setScalar(0.88);
 scene.add(flower2);
 
 // ── Third flower — left-back, smaller, will blur in DOF ──────────────────
-const flower3 = createIrisFlower(envMap, roughMap, normalMap, { detail: 0.45 });
+const flower3 = createIrisFlower(skyEnv.envMap, roughMap, normalMap, { detail: 0.45 });
 flower3.position.set(-1.3, 0.1, -2.8);
 flower3.rotation.y = -0.42;
 flower3.scale.setScalar(0.78);
 scene.add(flower3);
 
 // ── Distant glimpse — far right, partial ─────────────────────────────────
-const flower4 = createIrisFlower(envMap, roughMap, normalMap, { detail: 0.35 });
+const flower4 = createIrisFlower(skyEnv.envMap, roughMap, normalMap, { detail: 0.35 });
 flower4.position.set(2.6, 0.2, -3.5);
 flower4.rotation.y = 1.1;
 flower4.scale.setScalar(0.7);
@@ -100,6 +100,24 @@ controls.addEventListener('start', () => { autoRotate = false; });
 /* ─── Controls panel wiring ──────────────────────────────────────────────── */
 
 let dofEnabled = true;
+
+// Sky preset swatches
+document.querySelectorAll<HTMLElement>('[data-sky]').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('[data-sky]').forEach(e => e.classList.remove('active'));
+    el.classList.add('active');
+    skyEnv.set(el.dataset['sky'] as SkyPreset);
+  });
+});
+
+// Exposure presets
+document.querySelectorAll<HTMLElement>('[data-exp]').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('[data-exp]').forEach(e => e.classList.remove('active'));
+    el.classList.add('active');
+    renderer.toneMappingExposure = parseFloat(el.dataset['exp']!);
+  });
+});
 
 // Auto-rotate toggle
 const rotBtn = document.getElementById('toggle-rotate')!;

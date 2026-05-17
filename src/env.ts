@@ -283,47 +283,96 @@ function mulberry32(seed: number) {
 
 /* ─── Sky environment ────────────────────────────────────────────────────── */
 
+export type SkyPreset = 'deep-blue' | 'violet' | 'teal' | 'warm' | 'void';
+
+interface SkyPalette {
+  base: string;
+  upperTint: string;
+  keyGlow: string;
+  fillGlow: string;
+  accent: string;
+}
+
+const SKY_PALETTES: Record<SkyPreset, SkyPalette> = {
+  'deep-blue': {
+    base: '#02050f',
+    upperTint: 'rgba(6,14,44,0.85)',
+    keyGlow:   'rgba(160,200,255,0.28)',
+    fillGlow:  'rgba(100,155,255,0.18)',
+    accent:    'rgba(40,10,70,0.18)',
+  },
+  'violet': {
+    base: '#07020f',
+    upperTint: 'rgba(18,6,46,0.85)',
+    keyGlow:   'rgba(190,140,255,0.28)',
+    fillGlow:  'rgba(130,80,230,0.18)',
+    accent:    'rgba(80,10,120,0.20)',
+  },
+  'teal': {
+    base: '#010f0e',
+    upperTint: 'rgba(4,28,30,0.85)',
+    keyGlow:   'rgba(100,230,220,0.24)',
+    fillGlow:  'rgba(60,190,200,0.16)',
+    accent:    'rgba(10,50,60,0.18)',
+  },
+  'warm': {
+    base: '#100804',
+    upperTint: 'rgba(28,14,4,0.85)',
+    keyGlow:   'rgba(255,200,120,0.22)',
+    fillGlow:  'rgba(200,140,80,0.14)',
+    accent:    'rgba(60,20,10,0.18)',
+  },
+  'void': {
+    base: '#010101',
+    upperTint: 'rgba(4,6,14,0.70)',
+    keyGlow:   'rgba(60,80,130,0.16)',
+    fillGlow:  'rgba(40,60,110,0.10)',
+    accent:    'rgba(10,4,20,0.12)',
+  },
+};
+
+function drawSky(ctx: CanvasRenderingContext2D, W: number, H: number, p: SkyPalette) {
+  ctx.clearRect(0, 0, W, H);
+
+  ctx.fillStyle = p.base;
+  ctx.fillRect(0, 0, W, H);
+
+  const ug = ctx.createLinearGradient(0, 0, 0, H * 0.7);
+  ug.addColorStop(0, p.upperTint);
+  ug.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = ug;
+  ctx.fillRect(0, 0, W, H);
+
+  const gr = ctx.createRadialGradient(W * 0.73, H * 0.12, 0, W * 0.73, H * 0.12, W * 0.30);
+  gr.addColorStop(0, p.keyGlow);
+  gr.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = gr;
+  ctx.fillRect(0, 0, W, H);
+
+  const gl = ctx.createRadialGradient(W * 0.22, H * 0.18, 0, W * 0.22, H * 0.18, W * 0.24);
+  gl.addColorStop(0, p.fillGlow);
+  gl.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = gl;
+  ctx.fillRect(0, 0, W, H);
+
+  const va = ctx.createRadialGradient(W * 0.5, H * 0.88, 0, W * 0.5, H * 0.88, W * 0.45);
+  va.addColorStop(0, p.accent);
+  va.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = va;
+  ctx.fillRect(0, 0, W, H);
+}
+
 export function buildSkyEnv(renderer: THREE.WebGLRenderer): {
   envMap: THREE.Texture;
   sky: THREE.CanvasTexture;
+  set(preset: SkyPreset): void;
 } {
   const W = 2048, H = 1024;
   const canvas = document.createElement('canvas');
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d')!;
 
-  // Base — near-black deep navy
-  ctx.fillStyle = '#02050f';
-  ctx.fillRect(0, 0, W, H);
-
-  // Upper hemisphere tint
-  const skyGrad = ctx.createLinearGradient(0, 0, 0, H * 0.7);
-  skyGrad.addColorStop(0, 'rgba(6, 14, 44, 0.85)');
-  skyGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-  ctx.fillStyle = skyGrad;
-  ctx.fillRect(0, 0, W, H);
-
-  // Upper-right key glow — drives soft rounded specular on glass
-  const gr = ctx.createRadialGradient(W * 0.73, H * 0.12, 0, W * 0.73, H * 0.12, W * 0.28);
-  gr.addColorStop(0,   'rgba(160, 200, 255, 0.22)');
-  gr.addColorStop(0.5, 'rgba(80, 130, 220, 0.08)');
-  gr.addColorStop(1,   'rgba(0, 0, 0, 0)');
-  ctx.fillStyle = gr;
-  ctx.fillRect(0, 0, W, H);
-
-  // Upper-left secondary glow
-  const gl = ctx.createRadialGradient(W * 0.22, H * 0.18, 0, W * 0.22, H * 0.18, W * 0.22);
-  gl.addColorStop(0,   'rgba(100, 155, 255, 0.14)');
-  gl.addColorStop(1,   'rgba(0, 0, 0, 0)');
-  ctx.fillStyle = gl;
-  ctx.fillRect(0, 0, W, H);
-
-  // Subtle violet tint at lower edges
-  const vg = ctx.createRadialGradient(W * 0.5, H * 0.9, 0, W * 0.5, H * 0.9, W * 0.45);
-  vg.addColorStop(0,   'rgba(40, 10, 70, 0.18)');
-  vg.addColorStop(1,   'rgba(0, 0, 0, 0)');
-  ctx.fillStyle = vg;
-  ctx.fillRect(0, 0, W, H);
+  drawSky(ctx, W, H, SKY_PALETTES['deep-blue']);
 
   const sky = new THREE.CanvasTexture(canvas);
   sky.mapping = THREE.EquirectangularReflectionMapping;
@@ -334,5 +383,10 @@ export function buildSkyEnv(renderer: THREE.WebGLRenderer): {
   const envMap = pmrem.fromEquirectangular(sky).texture;
   pmrem.dispose();
 
-  return { envMap, sky };
+  function set(preset: SkyPreset) {
+    drawSky(ctx, W, H, SKY_PALETTES[preset]);
+    sky.needsUpdate = true;
+  }
+
+  return { envMap, sky, set };
 }
