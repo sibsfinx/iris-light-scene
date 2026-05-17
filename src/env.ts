@@ -114,14 +114,6 @@ export function createFogPlanes(): THREE.Group {
   haze.scale.set(5, 5, 1);
   group.add(haze);
 
-  // Black backdrop
-  const bd = new THREE.Mesh(
-    new THREE.PlaneGeometry(8, 8),
-    new THREE.MeshBasicMaterial({ color: 0x000000, depthWrite: false })
-  );
-  bd.position.set(0, 0, -3.6);
-  group.add(bd);
-
   return group;
 }
 
@@ -199,11 +191,11 @@ export type BgColor   = 'deep-blue' | 'stone' | 'forest' | 'burgundy' | 'off';
 export type BgTexture = 'solid' | 'gradient' | 'grid' | 'bokeh';
 
 const BG_HEX: Record<BgColor, string> = {
-  'deep-blue': '#0b1530',
-  'stone':     '#1c1510',
-  'forest':    '#091308',
-  'burgundy':  '#1a0608',
-  'off':       '#030203',
+  'deep-blue': '#0e2255',
+  'stone':     '#3a2510',
+  'forest':    '#102808',
+  'burgundy':  '#380c14',
+  'off':       '#050305',
 };
 
 export function createBackgroundPlane(): {
@@ -216,10 +208,10 @@ export function createBackgroundPlane(): {
   const tex = new THREE.CanvasTexture(canvas);
   tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
 
-  const geo = new THREE.PlaneGeometry(15, 20);
-  const mat = new THREE.MeshBasicMaterial({ map: tex, depthWrite: false });
+  const geo = new THREE.PlaneGeometry(18, 22);
+  const mat = new THREE.MeshBasicMaterial({ map: tex });
   const mesh = new THREE.Mesh(geo, mat);
-  mesh.position.set(0, 0.4, -3.3);
+  mesh.position.set(0, 0.5, -1.8);   // closer — less fog, clearly behind hero flower
   mesh.renderOrder = -1;
 
   function set(color: BgColor, type: BgTexture) {

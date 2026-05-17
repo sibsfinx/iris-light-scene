@@ -4,14 +4,14 @@ import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLigh
 RectAreaLightUniformsLib.init();
 
 export function setupLights(scene: THREE.Scene): void {
-  // Primary god-ray — upper-right, tight bright shaft
-  const godRay = new THREE.RectAreaLight(0xe0eeff, 55, 0.7, 6.0);
+  // Primary god-ray — upper-right, wide soft area
+  const godRay = new THREE.RectAreaLight(0xe0eeff, 28, 2.8, 6.0);
   godRay.position.set(3.4, 5.5, 0.8);
   godRay.lookAt(-0.5, 0.0, 0);
   scene.add(godRay);
 
-  // Secondary shaft — upper-left crossing over
-  const godRay2 = new THREE.RectAreaLight(0xc0d8ff, 30, 0.6, 4.5);
+  // Secondary shaft — upper-left, wide soft area
+  const godRay2 = new THREE.RectAreaLight(0xc0d8ff, 18, 2.4, 4.5);
   godRay2.position.set(-3.0, 4.8, 0.4);
   godRay2.lookAt(0.4, 0.0, 0);
   scene.add(godRay2);

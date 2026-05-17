@@ -283,30 +283,30 @@ export function makePetalMaterial(
   normalMap: THREE.CanvasTexture
 ): THREE.MeshPhysicalMaterial {
   return new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color(0.006, 0.012, 0.06),    // near-black with deep navy tint
-    transmission: 0.45,
+    color: new THREE.Color(0.22, 0.08, 0.45),      // violet — glass tint visible
+    transmission: 0.92,
     opacity: 1.0,
     transparent: true,
-    thickness: 0.32,
-    roughness: 0.016,
+    thickness: 0.12,
+    roughness: 0.10,                               // spread specular — no hard lines
     roughnessMap: roughMap,
     normalMap: normalMap,
-    normalScale: new THREE.Vector2(7.0, 7.0),
+    normalScale: new THREE.Vector2(1.6, 1.6),      // subtle veins, not mirror-line traps
     metalness: 0.0,
-    ior: 1.55,
-    specularIntensity: 2.2,
-    specularColor: new THREE.Color(0.95, 0.98, 1.0),  // near-white specular
-    attenuationColor: new THREE.Color(0.008, 0.025, 0.45),
-    attenuationDistance: 0.08,
-    iridescence: 0.50,
+    ior: 1.50,
+    specularIntensity: 0.9,
+    specularColor: new THREE.Color(0.88, 0.82, 1.0),
+    attenuationColor: new THREE.Color(0.50, 0.18, 0.90),  // violet absorption
+    attenuationDistance: 0.55,                             // short — violet shows through
+    iridescence: 0.35,
     iridescenceIOR: 1.45,
-    iridescenceThicknessRange: [140, 500] as [number, number],
-    clearcoat: 0.70,
-    clearcoatRoughness: 0.003,
+    iridescenceThicknessRange: [180, 520] as [number, number],
+    clearcoat: 0.50,
+    clearcoatRoughness: 0.05,
     sheen: 0.0,
     side: THREE.DoubleSide,
     envMap,
-    envMapIntensity: 0.25,
+    envMapIntensity: 0.30,
   });
 }
 
