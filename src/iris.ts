@@ -284,6 +284,8 @@ export function makePetalMaterial(
 ): THREE.MeshPhysicalMaterial {
   return new THREE.MeshPhysicalMaterial({
     color: new THREE.Color(0.02, 0.04, 0.10),      // near-black dark navy glass
+    emissive: new THREE.Color(0.04, 0.08, 0.28),   // soft blue-violet inner glow
+    emissiveIntensity: 0.18,
     transmission: 0.85,
     opacity: 1.0,
     transparent: true,
