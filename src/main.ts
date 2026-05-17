@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
-import { buildEnvMap, createRockBase, createGround, createFogPlanes, createDustParticles, animateDust, createBackgroundPlane, BgColor, BgTexture } from './env';
+import { buildSkyEnv, createRockBase, createGround, createFogPlanes, createDustParticles, animateDust } from './env';
 import { createIrisFlower, generateVeinMaps } from './iris';
 import { setupLights } from './lights';
 import { buildComposer } from './fx';
@@ -25,8 +25,7 @@ document.body.appendChild(renderer.domElement);
 /* ─── Scene ──────────────────────────────────────────────────────────────── */
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x000204);
-scene.fog = new THREE.FogExp2(0x00020a, 0.06);
+scene.fog = new THREE.FogExp2(0x02050f, 0.055);
 
 /* ─── Camera ─────────────────────────────────────────────────────────────── */
 
@@ -47,8 +46,9 @@ controls.update();
 
 /* ─── Build scene assets ─────────────────────────────────────────────────── */
 
-const envMap  = buildEnvMap(renderer);
+const { envMap, sky } = buildSkyEnv(renderer);
 scene.environment = envMap;
+scene.background  = sky;
 
 const { roughMap, normalMap } = generateVeinMaps(1024, 1024);
 
@@ -80,10 +80,6 @@ flower4.rotation.y = 1.1;
 flower4.scale.setScalar(0.7);
 scene.add(flower4);
 
-// Background plane (behind flowers, shows through transmission)
-const bg = createBackgroundPlane();
-scene.add(bg.mesh);
-
 // Environment
 scene.add(createRockBase());
 scene.add(createGround());
@@ -103,30 +99,7 @@ controls.addEventListener('start', () => { autoRotate = false; });
 
 /* ─── Controls panel wiring ──────────────────────────────────────────────── */
 
-let bgColor: BgColor   = 'deep-blue';
-let bgTex:   BgTexture = 'gradient';
 let dofEnabled = true;
-
-// Background color swatches
-document.querySelectorAll<HTMLElement>('[data-bg-color]').forEach(el => {
-  el.addEventListener('click', () => {
-    document.querySelectorAll('[data-bg-color]').forEach(e => e.classList.remove('active'));
-    el.classList.add('active');
-    bgColor = el.dataset['bgColor'] as BgColor;
-    bg.set(bgColor, bgTex);
-    bg.mesh.visible = bgColor !== 'off';
-  });
-});
-
-// Background texture radios
-document.querySelectorAll<HTMLElement>('[data-bg-tex]').forEach(el => {
-  el.addEventListener('click', () => {
-    document.querySelectorAll('[data-bg-tex]').forEach(e => e.classList.remove('active'));
-    el.classList.add('active');
-    bgTex = el.dataset['bgTex'] as BgTexture;
-    bg.set(bgColor, bgTex);
-  });
-});
 
 // Auto-rotate toggle
 const rotBtn = document.getElementById('toggle-rotate')!;

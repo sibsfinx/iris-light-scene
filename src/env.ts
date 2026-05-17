@@ -281,18 +281,58 @@ function mulberry32(seed: number) {
   };
 }
 
-/* ─── Dark environment map ───────────────────────────────────────────────── */
+/* ─── Sky environment ────────────────────────────────────────────────────── */
 
-export function buildEnvMap(renderer: THREE.WebGLRenderer): THREE.Texture {
+export function buildSkyEnv(renderer: THREE.WebGLRenderer): {
+  envMap: THREE.Texture;
+  sky: THREE.CanvasTexture;
+} {
+  const W = 2048, H = 1024;
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d')!;
+
+  // Base — near-black deep navy
+  ctx.fillStyle = '#02050f';
+  ctx.fillRect(0, 0, W, H);
+
+  // Upper hemisphere tint
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, H * 0.7);
+  skyGrad.addColorStop(0, 'rgba(6, 14, 44, 0.85)');
+  skyGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Upper-right key glow — drives soft rounded specular on glass
+  const gr = ctx.createRadialGradient(W * 0.73, H * 0.12, 0, W * 0.73, H * 0.12, W * 0.28);
+  gr.addColorStop(0,   'rgba(160, 200, 255, 0.22)');
+  gr.addColorStop(0.5, 'rgba(80, 130, 220, 0.08)');
+  gr.addColorStop(1,   'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = gr;
+  ctx.fillRect(0, 0, W, H);
+
+  // Upper-left secondary glow
+  const gl = ctx.createRadialGradient(W * 0.22, H * 0.18, 0, W * 0.22, H * 0.18, W * 0.22);
+  gl.addColorStop(0,   'rgba(100, 155, 255, 0.14)');
+  gl.addColorStop(1,   'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = gl;
+  ctx.fillRect(0, 0, W, H);
+
+  // Subtle violet tint at lower edges
+  const vg = ctx.createRadialGradient(W * 0.5, H * 0.9, 0, W * 0.5, H * 0.9, W * 0.45);
+  vg.addColorStop(0,   'rgba(40, 10, 70, 0.18)');
+  vg.addColorStop(1,   'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, W, H);
+
+  const sky = new THREE.CanvasTexture(canvas);
+  sky.mapping = THREE.EquirectangularReflectionMapping;
+  sky.colorSpace = THREE.SRGBColorSpace;
+
   const pmrem = new THREE.PMREMGenerator(renderer);
   pmrem.compileEquirectangularShader();
-  const envScene = new THREE.Scene();
-  envScene.background = new THREE.Color(0x010306);
-  const t = new THREE.DirectionalLight(0x2040a0, 0.1);
-  t.position.set(0, 1, 0);
-  envScene.add(t);
-  envScene.add(new THREE.AmbientLight(0x030508, 0.06));
-  const tex = pmrem.fromScene(envScene, 0.02).texture;
+  const envMap = pmrem.fromEquirectangular(sky).texture;
   pmrem.dispose();
-  return tex;
+
+  return { envMap, sky };
 }

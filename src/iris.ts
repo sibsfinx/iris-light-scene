@@ -306,7 +306,7 @@ export function makePetalMaterial(
     sheen: 0.0,
     side: THREE.DoubleSide,
     envMap,
-    envMapIntensity: 0.30,
+    envMapIntensity: 1.2,
   });
 }
 
