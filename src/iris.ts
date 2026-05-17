@@ -288,10 +288,10 @@ export function makePetalMaterial(
     opacity: 1.0,
     transparent: true,
     thickness: 0.14,
-    roughness: 0.022,                              // near-mirror → tight sparkle per vein
+    roughness: 0.032,                              // slight spread → round specular, no square pixels
     roughnessMap: roughMap,
     normalMap: normalMap,
-    normalScale: new THREE.Vector2(5.0, 5.0),      // high → glitter across vein network
+    normalScale: new THREE.Vector2(3.5, 3.5),      // glitter without pillar streaks
     metalness: 0.0,
     ior: 1.52,
     specularIntensity: 1.6,
@@ -301,8 +301,8 @@ export function makePetalMaterial(
     iridescence: 0.45,
     iridescenceIOR: 1.45,
     iridescenceThicknessRange: [150, 500] as [number, number],
-    clearcoat: 0.60,
-    clearcoatRoughness: 0.010,
+    clearcoat: 0.55,
+    clearcoatRoughness: 0.045,                     // no square pixel reflections of point lights
     sheen: 0.0,
     side: THREE.DoubleSide,
     envMap,

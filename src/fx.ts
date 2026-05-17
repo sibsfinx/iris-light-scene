@@ -100,9 +100,8 @@ export function buildComposer(
   });
   composer.addPass(bokeh);
 
-  // Bloom — very tight threshold, only absolute brightest vein lines glow
-  // radius 0.55 → soft circular glow (low radius = cross-shaped spikes)
-  const bloom = new UnrealBloomPass(new THREE.Vector2(w, h), 0.42, 0.55, 0.94);
+  // Bloom — wide radius → round soft glow (square artifacts = radius too low)
+  const bloom = new UnrealBloomPass(new THREE.Vector2(w, h), 0.32, 0.80, 0.90);
   composer.addPass(bloom);
 
   // Filmic grade
