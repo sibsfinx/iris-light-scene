@@ -1,0 +1,51 @@
+STAKLENI HERBAR / GLASS HERBARIUM
+Mikser Festival — open call submission
+—————————————————————————————————————
+
+PROJECT TITLE
+Stakleni herbar (Glass Herbarium)
+
+PITCH
+Iris reichenbachii still grows on Zlatibor — protected on paper,
+invisible in public consciousness. I rendered it as crystal glass:
+a real-time 3D environment for projection and a print series,
+because that's what our relationship with these species actually
+looks like — beautiful, untouchable, already half-gone.
+
+FORMAT
+Projection / screen — real-time 3D environment running live,
+looping, ambient. Viewers can interact (orbit, zoom) or it plays
+as an autonomous slow rotation. Scales to any surface from a
+single monitor to a full wall projection.
+
+Print series (support) — 4–6 large-format prints, different angles
+and lighting. Can include minimal botanical annotation (Latin name,
+habitat, protection status) as a quiet counter to the visual
+abstraction.
+
+SPECIES
+Iris reichenbachii — Zlatibor mountain iris, protected under
+Serbian law (Pravilnik o proglašavanju divljih vrsta).
+First species in what is intended as an ongoing series covering
+Serbian endemic and endangered flora: Picea omorika (Pančić's
+spruce, Drina canyon), Ramonda nathaliae (Natalija flower,
+Serbia's national endemic).
+
+TECHNICAL
+Real-time 3D (WebGL / Three.js), runs in browser, no installation.
+Projection-ready: any aspect ratio, any resolution up to 4K.
+HD PNG export built in.
+
+LIVE PREVIEW
+http://localhost:7341  (render)
+http://localhost:7342  (projection mockup)
+
+—————————————————————————————————————
+FILES IN THIS ARCHIVE
+
+iris-render.png       — direct screenshot of the live render
+iris-mockup-room.png  — projection mockup (dark room, glow only)
+mockup/index.html     — self-contained mockup page, open in browser
+                        (set src to point to a running instance or
+                         replace iframe with a static image)
+pitch.txt             — this file

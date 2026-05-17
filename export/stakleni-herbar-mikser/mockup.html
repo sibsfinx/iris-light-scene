@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stakleni herbar — projection mockup</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; background: #000; overflow: hidden; font-family: system-ui, sans-serif; }
+
+    #stage {
+      position: relative;
+      width: 100vw; height: 100vh;
+      background: #000;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ── The only light in the room: the projection ──────────────────────── */
+    #screen {
+      position: relative;
+      z-index: 4;
+      width: min(38vw, 54vh);
+      aspect-ratio: 9 / 16;
+      overflow: hidden;
+      /* Concentric glow layers simulate light hitting a physical wall */
+      box-shadow:
+        0 0  18px  3px  rgba(180, 210, 255, 0.35),   /* bright edge bleed */
+        0 0  55px 18px  rgba(110, 150, 255, 0.18),   /* first halo */
+        0 0 120px 50px  rgba(70,  105, 230, 0.10),   /* mid spill */
+        0 0 250px 110px rgba(40,   70, 200, 0.06),   /* wall wash */
+        0 0 420px 200px rgba(20,   40, 160, 0.04);   /* room fill */
+    }
+
+    #screen iframe {
+      position: absolute;
+      /* Overscan to hide UI chrome */
+      top: -13%; left: -13%;
+      width: 126%; height: 126%;
+      border: none;
+      pointer-events: none;
+    }
+
+    /* Soft projection edge — real beam bleeds at boundary */
+    #screen::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(
+        ellipse 90% 86% at 50% 50%,
+        transparent 48%,
+        rgba(2, 1, 5, 0.50) 100%
+      );
+      pointer-events: none;
+    }
+
+    /* ── Projection beam — faint cone from top ───────────────────────────── */
+    #beam {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 3;
+      background:
+        conic-gradient(
+          from 270deg at 50% -8%,
+          transparent 0deg,
+          rgba(100, 140, 255, 0.025) 8deg,
+          rgba(100, 140, 255, 0.025) 16deg,
+          transparent 24deg
+        );
+    }
+
+    /* ── Projector source dot ────────────────────────────────────────────── */
+    #projector {
+      position: absolute;
+      top: 2%; left: 50%;
+      transform: translateX(-50%);
+      width: 4px; height: 4px;
+      border-radius: 50%;
+      background: rgba(220, 232, 255, 0.55);
+      box-shadow: 0 0 8px 5px rgba(180, 210, 255, 0.15);
+      z-index: 6;
+      pointer-events: none;
+    }
+
+    /* ── Film grain over entire scene ────────────────────────────────────── */
+    #grain {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9;
+      mix-blend-mode: overlay;
+      opacity: 0.06;
+      animation: gr 0.09s steps(1) infinite;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='turbulence' baseFrequency='0.80' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23g)'/%3E%3C/svg%3E");
+      background-size: 300px 300px;
+    }
+    @keyframes gr {
+      0%  { background-position:   0px   0px }
+      12% { background-position: -70px  30px }
+      25% { background-position:  40px -55px }
+      37% { background-position: -95px  18px }
+      50% { background-position:  65px  65px }
+      62% { background-position: -30px -75px }
+      75% { background-position:  50px  40px }
+      87% { background-position: -80px -25px }
+    }
+
+    /* ── Label ───────────────────────────────────────────────────────────── */
+    #label {
+      position: absolute;
+      bottom: 22px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 8;
+      text-align: center;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    #label .title {
+      display: block;
+      font-size: 10px;
+      letter-spacing: 0.26em;
+      text-transform: uppercase;
+      color: rgba(140, 168, 255, 0.28);
+    }
+    #label .sub {
+      display: block;
+      margin-top: 5px;
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      color: rgba(100, 130, 200, 0.18);
+    }
+
+    /* ── Open render link ────────────────────────────────────────────────── */
+    #open {
+      position: absolute;
+      top: 16px; right: 16px;
+      z-index: 10;
+      padding: 6px 13px;
+      font: 500 10px/1 system-ui;
+      letter-spacing: 0.10em;
+      text-decoration: none;
+      color: rgba(150, 178, 255, 0.38);
+      border: 1px solid rgba(80, 110, 255, 0.14);
+      border-radius: 5px;
+      backdrop-filter: blur(6px);
+      transition: opacity 0.2s;
+    }
+    #open:hover { opacity: 0.7; }
+  </style>
+</head>
+<body>
+  <div id="stage">
+    <div id="beam"></div>
+
+    <div id="screen">
+      <iframe src="http://localhost:7341" scrolling="no" title="Stakleni herbar"></iframe>
+    </div>
+
+    <div id="projector"></div>
+    <div id="grain"></div>
+
+    <div id="label">
+      <span class="title">Stakleni herbar</span>
+      <span class="sub">projection mockup &nbsp;·&nbsp; Iris reichenbachii, Zlatibor &nbsp;·&nbsp; proof of concept</span>
+    </div>
+
+    <a id="open" href="http://localhost:7341" target="_blank">open render →</a>
+  </div>
+</body>
+</html>
