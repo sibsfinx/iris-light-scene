@@ -5,8 +5,7 @@
       "name": "iris-3d",
       "runtimeExecutable": "sh",
       "runtimeArgs": ["dev.sh"],
-      "port": 3000,
-      "autoPort": true
+      "port": 7341
     }
   ]
 }
