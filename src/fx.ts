@@ -100,8 +100,8 @@ export function buildComposer(
   });
   composer.addPass(bokeh);
 
-  // Bloom — wide radius → round soft glow (square artifacts = radius too low)
-  const bloom = new UnrealBloomPass(new THREE.Vector2(w, h), 0.32, 0.80, 0.90);
+  // Bloom — wide radius = round glow; high threshold = only true hotspots bloom
+  const bloom = new UnrealBloomPass(new THREE.Vector2(w, h), 0.35, 0.80, 0.92);
   composer.addPass(bloom);
 
   // Filmic grade

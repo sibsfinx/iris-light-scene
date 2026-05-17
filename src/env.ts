@@ -285,81 +285,48 @@ function mulberry32(seed: number) {
 
 export type SkyPreset = 'deep-blue' | 'violet' | 'teal' | 'warm' | 'void';
 
-interface SkyPalette {
-  base: string;
-  upperTint: string;
-  keyGlow: string;
-  fillGlow: string;
-  accent: string;
-}
+/* ── Visible background palettes (dark/moody) ───────────────────────────── */
 
-const SKY_PALETTES: Record<SkyPreset, SkyPalette> = {
-  'deep-blue': {
-    base: '#000204',
-    upperTint: 'rgba(2,6,20,0.90)',
-    keyGlow:   'rgba(80,120,210,0.14)',
-    fillGlow:  'rgba(50,90,180,0.09)',
-    accent:    'rgba(20,5,40,0.12)',
-  },
-  'violet': {
-    base: '#010005',
-    upperTint: 'rgba(8,2,22,0.90)',
-    keyGlow:   'rgba(120,70,220,0.16)',
-    fillGlow:  'rgba(80,40,180,0.10)',
-    accent:    'rgba(50,5,80,0.14)',
-  },
-  'teal': {
-    base: '#000504',
-    upperTint: 'rgba(2,14,14,0.90)',
-    keyGlow:   'rgba(40,160,150,0.14)',
-    fillGlow:  'rgba(20,120,130,0.09)',
-    accent:    'rgba(5,30,35,0.12)',
-  },
-  'warm': {
-    base: '#050200',
-    upperTint: 'rgba(14,6,0,0.90)',
-    keyGlow:   'rgba(200,120,40,0.14)',
-    fillGlow:  'rgba(150,80,20,0.09)',
-    accent:    'rgba(40,10,5,0.12)',
-  },
-  'void': {
-    base: '#000000',
-    upperTint: 'rgba(2,2,6,0.90)',
-    keyGlow:   'rgba(30,40,80,0.10)',
-    fillGlow:  'rgba(20,30,60,0.07)',
-    accent:    'rgba(5,2,10,0.08)',
-  },
+interface BgPalette { base: string; glow: string; accent: string; }
+
+const BG_PALETTES: Record<SkyPreset, BgPalette> = {
+  'deep-blue': { base: '#000204', glow: 'rgba(30,60,140,0.22)',  accent: 'rgba(15,4,35,0.14)' },
+  'violet':    { base: '#010006', glow: 'rgba(60,20,150,0.22)',  accent: 'rgba(35,4,60,0.16)' },
+  'teal':      { base: '#000504', glow: 'rgba(10,80,80,0.22)',   accent: 'rgba(4,20,25,0.14)' },
+  'warm':      { base: '#050200', glow: 'rgba(90,40,8,0.22)',    accent: 'rgba(25,8,4,0.14)'  },
+  'void':      { base: '#000000', glow: 'rgba(10,12,25,0.18)',   accent: 'rgba(4,2,8,0.10)'   },
 };
 
-function drawSky(ctx: CanvasRenderingContext2D, W: number, H: number, p: SkyPalette) {
+function drawBg(ctx: CanvasRenderingContext2D, W: number, H: number, p: BgPalette) {
   ctx.clearRect(0, 0, W, H);
-
   ctx.fillStyle = p.base;
   ctx.fillRect(0, 0, W, H);
+  // subtle upper glow
+  const g = ctx.createRadialGradient(W*0.7, H*0.15, 0, W*0.7, H*0.15, W*0.40);
+  g.addColorStop(0, p.glow); g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // lower accent
+  const a = ctx.createRadialGradient(W*0.5, H*0.9, 0, W*0.5, H*0.9, W*0.45);
+  a.addColorStop(0, p.accent); a.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = a; ctx.fillRect(0, 0, W, H);
+}
 
-  const ug = ctx.createLinearGradient(0, 0, 0, H * 0.7);
-  ug.addColorStop(0, p.upperTint);
-  ug.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = ug;
-  ctx.fillRect(0, 0, W, H);
+/* ── IBL canvas — uniform gradient only, no bright zones (prevents cube seams) */
 
-  const gr = ctx.createRadialGradient(W * 0.73, H * 0.12, 0, W * 0.73, H * 0.12, W * 0.30);
-  gr.addColorStop(0, p.keyGlow);
-  gr.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = gr;
+function buildIBLCanvas(): HTMLCanvasElement {
+  const W = 512, H = 256;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d')!;
+  // Smooth vertical gradient — upper hemisphere slightly lighter cool blue
+  // No sharp zones → no cube face boundary artefacts at any roughness level
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0,   '#0c1830');
+  g.addColorStop(0.5, '#060e1e');
+  g.addColorStop(1,   '#020408');
+  ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
-
-  const gl = ctx.createRadialGradient(W * 0.22, H * 0.18, 0, W * 0.22, H * 0.18, W * 0.24);
-  gl.addColorStop(0, p.fillGlow);
-  gl.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = gl;
-  ctx.fillRect(0, 0, W, H);
-
-  const va = ctx.createRadialGradient(W * 0.5, H * 0.88, 0, W * 0.5, H * 0.88, W * 0.45);
-  va.addColorStop(0, p.accent);
-  va.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = va;
-  ctx.fillRect(0, 0, W, H);
+  return c;
 }
 
 export function buildSkyEnv(renderer: THREE.WebGLRenderer): {
@@ -367,24 +334,30 @@ export function buildSkyEnv(renderer: THREE.WebGLRenderer): {
   sky: THREE.CanvasTexture;
   set(preset: SkyPreset): void;
 } {
-  const W = 2048, H = 1024;
-  const canvas = document.createElement('canvas');
-  canvas.width = W; canvas.height = H;
-  const ctx = canvas.getContext('2d')!;
+  // IBL canvas — bright, drives glass specular/transmission (never shown as background)
+  const iblCanvas = buildIBLCanvas();
+  const iblTex = new THREE.CanvasTexture(iblCanvas);
+  iblTex.mapping = THREE.EquirectangularReflectionMapping;
+  iblTex.colorSpace = THREE.SRGBColorSpace;
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  pmrem.compileEquirectangularShader();
+  const envMap = pmrem.fromEquirectangular(iblTex).texture;
+  pmrem.dispose();
+  iblTex.dispose();
 
-  drawSky(ctx, W, H, SKY_PALETTES['deep-blue']);
+  // Background canvas — dark moody, shown as scene.background
+  const BW = 2048, BH = 1024;
+  const bgCanvas = document.createElement('canvas');
+  bgCanvas.width = BW; bgCanvas.height = BH;
+  const bgCtx = bgCanvas.getContext('2d')!;
+  drawBg(bgCtx, BW, BH, BG_PALETTES['deep-blue']);
 
-  const sky = new THREE.CanvasTexture(canvas);
+  const sky = new THREE.CanvasTexture(bgCanvas);
   sky.mapping = THREE.EquirectangularReflectionMapping;
   sky.colorSpace = THREE.SRGBColorSpace;
 
-  const pmrem = new THREE.PMREMGenerator(renderer);
-  pmrem.compileEquirectangularShader();
-  const envMap = pmrem.fromEquirectangular(sky).texture;
-  pmrem.dispose();
-
   function set(preset: SkyPreset) {
-    drawSky(ctx, W, H, SKY_PALETTES[preset]);
+    drawBg(bgCtx, BW, BH, BG_PALETTES[preset]);
     sky.needsUpdate = true;
   }
 

@@ -288,25 +288,25 @@ export function makePetalMaterial(
     opacity: 1.0,
     transparent: true,
     thickness: 0.14,
-    roughness: 0.032,                              // slight spread → round specular, no square pixels
+    roughness: 0.020,
     roughnessMap: roughMap,
     normalMap: normalMap,
-    normalScale: new THREE.Vector2(3.5, 3.5),      // glitter without pillar streaks
+    normalScale: new THREE.Vector2(5.5, 5.5),
     metalness: 0.0,
     ior: 1.52,
-    specularIntensity: 1.6,
+    specularIntensity: 1.4,
     specularColor: new THREE.Color(0.90, 0.95, 1.0),
     attenuationColor: new THREE.Color(0.12, 0.20, 0.55),
-    attenuationDistance: 0.35,                     // short → dark body with blue depth
+    attenuationDistance: 0.35,
     iridescence: 0.45,
     iridescenceIOR: 1.45,
     iridescenceThicknessRange: [150, 500] as [number, number],
-    clearcoat: 0.55,
-    clearcoatRoughness: 0.045,                     // no square pixel reflections of point lights
+    clearcoat: 0.0,                                // off — mid-roughness PMREM = cube face squares
+    clearcoatRoughness: 0.20,
     sheen: 0.0,
     side: THREE.DoubleSide,
     envMap,
-    envMapIntensity: 0.45,
+    envMapIntensity: 0.5,
   });
 }
 
