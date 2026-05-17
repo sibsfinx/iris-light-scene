@@ -94,14 +94,14 @@ export function buildComposer(
 
   // Depth of field — focus on the hero flower (~5.2m from camera)
   const bokeh = new BokehPass(scene, camera, {
-    focus: 5.2,
-    aperture: 0.00012,
-    maxblur: 0.006,
+    focus: 4.8,
+    aperture: 0.00018,
+    maxblur: 0.010,
   });
   composer.addPass(bokeh);
 
   // Bloom — very tight threshold, only absolute brightest vein lines glow
-  const bloom = new UnrealBloomPass(new THREE.Vector2(w, h), 0.6, 0.18, 0.91);
+  const bloom = new UnrealBloomPass(new THREE.Vector2(w, h), 0.75, 0.22, 0.88);
   composer.addPass(bloom);
 
   // Filmic grade

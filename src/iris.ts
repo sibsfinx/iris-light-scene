@@ -283,31 +283,31 @@ export function makePetalMaterial(
   normalMap: THREE.CanvasTexture
 ): THREE.MeshPhysicalMaterial {
   return new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color(0.96, 0.97, 1.0),      // near-colorless glass
-    transmission: 0.96,
+    color: new THREE.Color(0.022, 0.042, 0.13),    // deep navy glass body
+    transmission: 0.60,
     opacity: 1.0,
     transparent: true,
-    thickness: 0.08,
-    roughness: 0.01,
+    thickness: 0.22,
+    roughness: 0.007,
     roughnessMap: roughMap,
     normalMap: normalMap,
-    normalScale: new THREE.Vector2(4.0, 4.0),      // strong vein relief
+    normalScale: new THREE.Vector2(5.5, 5.5),      // strong vein ridges
     metalness: 0.0,
-    ior: 1.50,
-    specularIntensity: 1.5,
-    specularColor: new THREE.Color(1.0, 0.99, 0.97),
-    attenuationColor: new THREE.Color(0.04, 0.15, 0.78),
-    attenuationDistance: 0.35,
-    iridescence: 0.5,
+    ior: 1.52,
+    specularIntensity: 1.8,
+    specularColor: new THREE.Color(0.85, 0.92, 1.0),
+    attenuationColor: new THREE.Color(0.01, 0.04, 0.55),
+    attenuationDistance: 0.14,
+    iridescence: 0.65,
     iridescenceIOR: 1.45,
-    iridescenceThicknessRange: [80, 340] as [number, number],
-    clearcoat: 0.35,
-    clearcoatRoughness: 0.005,
-    sheen: 0.08,
-    sheenColor: new THREE.Color(0.7, 0.8, 1.0),
+    iridescenceThicknessRange: [100, 420] as [number, number],
+    clearcoat: 0.55,
+    clearcoatRoughness: 0.004,
+    sheen: 0.05,
+    sheenColor: new THREE.Color(0.5, 0.65, 1.0),
     side: THREE.DoubleSide,
     envMap,
-    envMapIntensity: 0.6,
+    envMapIntensity: 0.45,
   });
 }
 

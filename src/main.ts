@@ -18,15 +18,15 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.68;
+renderer.toneMappingExposure = 0.52;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
 /* ─── Scene ──────────────────────────────────────────────────────────────── */
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x000306);
-scene.fog = new THREE.FogExp2(0x010510, 0.12);
+scene.background = new THREE.Color(0x000204);
+scene.fog = new THREE.FogExp2(0x00030c, 0.10);
 
 /* ─── Camera ─────────────────────────────────────────────────────────────── */
 
