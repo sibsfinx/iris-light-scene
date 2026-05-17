@@ -34,6 +34,13 @@ export function setupLights(scene: THREE.Scene): void {
   backCool.lookAt(0, 0, 0);
   scene.add(backCool);
 
+  // Grazing side spot — hits petal surfaces at low angle to streak veins
+  const sideSpot = new THREE.SpotLight(0xd8eeff, 18, 8.0, Math.PI * 0.06, 0.8, 1.5);
+  sideSpot.position.set(-2.8, 0.2, 0.8);
+  sideSpot.target.position.set(0, 0.1, 0);
+  scene.add(sideSpot);
+  scene.add(sideSpot.target);
+
   scene.add(new THREE.AmbientLight(0x010102, 0.03));
   scene.add(new THREE.HemisphereLight(0x010408, 0x010101, 0.02));
 }
