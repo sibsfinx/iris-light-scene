@@ -187,6 +187,7 @@ const fx = buildComposer(renderer, scene, camera);
 
 let autoRotate = true;
 controls.addEventListener('start', () => { autoRotate = false; });
+(window as any).__setAutoRotate = (v: boolean) => { autoRotate = v; };
 
 /* ─── Controls panel wiring ──────────────────────────────────────────────── */
 
