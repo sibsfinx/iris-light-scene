@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
-import { buildEnvMap, createRockBase, createGround, createFogPlanes, createDustParticles, animateDust } from './env';
-import { createIrisFlower, generateVeinMaps } from './iris';
+import { createGround, createFogPlanes, createDustParticles, animateDust } from './env';
+import { ParticleSystem } from './particles';
 import { setupLights, type SceneLights } from './lights';
 import { buildComposer } from './fx';
 import { PresenceDetector, type PresenceSignal } from './presence';
@@ -48,41 +48,11 @@ controls.update();
 
 /* ─── Build scene assets ─────────────────────────────────────────────────── */
 
-const envMap  = buildEnvMap(renderer);
-scene.environment = envMap;
-
-const { roughMap, normalMap } = generateVeinMaps(1024, 1024);
-
 const lights: SceneLights = setupLights(scene);
 
-// ── Hero flower — front-centre, full detail ──────────────────────────────
-const heroFlower = createIrisFlower(envMap, roughMap, normalMap, { detail: 1.0 });
-heroFlower.position.set(0, 0, 0);
-scene.add(heroFlower);
-
-// ── Second flower — right-back, slight scale variation ───────────────────
-const flower2 = createIrisFlower(envMap, roughMap, normalMap, { detail: 0.65 });
-flower2.position.set(1.15, -0.25, -1.8);
-flower2.rotation.y = 0.55;
-flower2.scale.setScalar(0.88);
-scene.add(flower2);
-
-// ── Third flower — left-back, smaller, will blur in DOF ──────────────────
-const flower3 = createIrisFlower(envMap, roughMap, normalMap, { detail: 0.45 });
-flower3.position.set(-1.3, 0.1, -2.8);
-flower3.rotation.y = -0.42;
-flower3.scale.setScalar(0.78);
-scene.add(flower3);
-
-// ── Distant glimpse — far right, partial ─────────────────────────────────
-const flower4 = createIrisFlower(envMap, roughMap, normalMap, { detail: 0.35 });
-flower4.position.set(2.6, 0.2, -3.5);
-flower4.rotation.y = 1.1;
-flower4.scale.setScalar(0.7);
-scene.add(flower4);
+const particleSystem = new ParticleSystem(scene);
 
 // Environment
-scene.add(createRockBase());
 scene.add(createGround());
 scene.add(createFogPlanes());
 
@@ -238,8 +208,7 @@ function reactToPresence(sig: PresenceSignal, dt: number, _t: number) {
 
 /* ─── Auto-slow rotation (stops on user touch) ───────────────────────────── */
 
-let autoRotate = true;
-controls.addEventListener('start', () => { autoRotate = false; });
+controls.addEventListener('start', () => { particleSystem.autoRotate = false; });
 
 /* ─── Resize ─────────────────────────────────────────────────────────────── */
 
@@ -260,14 +229,6 @@ function animate() {
   const dt = clock.getDelta();
   const t  = clock.getElapsedTime();
 
-  // Gentle slow rotation of whole scene
-  if (autoRotate) {
-    heroFlower.rotation.y = t * 0.07;
-    flower2.rotation.y    = 0.55 + t * 0.05;
-    flower3.rotation.y    = -0.42 + t * 0.06;
-    flower4.rotation.y    = 1.1  + t * 0.04;
-  }
-
   // Subtle breathing on fog planes
   scene.children.forEach(child => {
     if (child.userData['isFog']) {
@@ -280,6 +241,7 @@ function animate() {
   animateDust(dust, t, dt);
   controls.update();
   reactToPresence(detector.signal, dt, t);
+  particleSystem.update(t, smooth.blendA, _tgt1);
   fx.tick(dt);
   fx.composer.render();
 }
