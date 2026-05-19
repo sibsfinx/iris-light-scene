@@ -185,7 +185,7 @@ export function generateVeinMaps(
    PETAL GEOMETRY — parametric surface with rounder/wider falls
    ═══════════════════════════════════════════════════════════════════════════ */
 
-interface PetalConfig {
+export interface PetalConfig {
   length: number;
   maxWidth: number;
   droop: number;
@@ -197,7 +197,7 @@ interface PetalConfig {
   vSegs: number;
 }
 
-function buildPetalGeo(cfg: PetalConfig, isStandard = false): THREE.BufferGeometry {
+export function buildPetalGeo(cfg: PetalConfig, isStandard = false): THREE.BufferGeometry {
   const { length, maxWidth, droop, cup, waviness, edgeRuffle, twist, uSegs, vSegs } = cfg;
 
   const positions: number[] = [];
