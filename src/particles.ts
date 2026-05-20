@@ -32,14 +32,25 @@ uniform float uSharp;
 
 void main() {
   vec2  uv   = gl_PointCoord - 0.5;
-  float dist = length(uv);
-  if (dist > 0.5) discard;
+  float r    = length(uv);
+  if (r > 0.5) discard;
 
-  float edge = uSharp > 0.5
-    ? pow(max(0.0, 1.0 - dist * 2.0), 1.1)
-    : 1.0 - smoothstep(0.05, 0.48, dist);
+  float edge;
+  vec3  col = mix(uColorA, uColorB, uPresence);
 
-  vec3 col = mix(uColorA, uColorB, uPresence);
+  if (uSharp > 0.5) {
+    // Sparkle: 4-pointed star with hot white core
+    float angle = atan(uv.y, uv.x);
+    float star4  = abs(cos(angle * 2.0));
+    float star4b = abs(cos(angle * 2.0 + 0.7854)) * 0.42;
+    float rays   = max(star4, star4b);
+    float spike  = pow(rays, 2.2) * pow(max(0.0, 1.0 - r * 1.85), 0.65);
+    float core   = pow(max(0.0, 1.0 - r * 4.2), 1.6);
+    edge = min(core + spike, 1.0);
+    col  = mix(col, vec3(1.8, 1.9, 2.1), core * 0.85);
+  } else {
+    edge = 1.0 - smoothstep(0.05, 0.48, r);
+  }
 
   float theta = atan(uv.y, uv.x);
   float irid  = sin(theta * 4.0 + uTime * 0.9) * 0.18 * uPresence;
@@ -173,9 +184,19 @@ function seedGlare(count: number): Seed {
     const n      = petal < 5 ? perPetal : count - idx;
 
     for (let i = 0; i < n && idx < count; i++, idx++) {
-      // Bias heavily toward tips (u > 0.6) and petal edges (|cv| > 0.5)
-      const u  = 0.55 + Math.random() * 0.45;
-      const cv = (Math.random() > 0.5 ? 1 : -1) * (0.45 + Math.random() * 0.55);
+      // Tips + edges (65%), spine highlights (20%), base convergence (15%)
+      const zone = Math.random();
+      let u: number, cv: number;
+      if (zone < 0.65) {
+        u  = 0.52 + Math.random() * 0.48;
+        cv = (Math.random() > 0.5 ? 1 : -1) * (0.42 + Math.random() * 0.58);
+      } else if (zone < 0.85) {
+        u  = 0.15 + Math.random() * 0.70;
+        cv = (Math.random() - 0.5) * 0.28;
+      } else {
+        u  = 0.02 + Math.random() * 0.22;
+        cv = (Math.random() - 0.5) * 0.50;
+      }
 
       const p  = sample(u, cv);
       const pr = rotY(p, ry);
@@ -187,7 +208,9 @@ function seedGlare(count: number): Seed {
       vel[idx * 3 + 1] = (Math.random() - 0.5) * 0.004;
       vel[idx * 3 + 2] = (Math.random() - 0.5) * 0.004;
       ph[idx] = Math.random() * Math.PI * 2;
-      sz[idx] = 0.22 + Math.random() * 0.55;
+      // Mix: many tiny sparkles + a few medium anchors
+      const big = Math.random() < 0.25;
+      sz[idx]   = big ? 0.12 + Math.random() * 0.18 : 0.022 + Math.random() * 0.07;
     }
   }
 
@@ -289,10 +312,10 @@ interface ClusterCfg {
 }
 
 const CFG: ClusterCfg[] = [
-  { pos: [ 0,    0.22,  0   ], scale: 1.00, rotOff:  0,    rotSpd: 0.07, nVeins: 28, nPts: 22, nGlare: 280 },
-  { pos: [ 1.15,-0.03, -1.8 ], scale: 0.88, rotOff:  0.55, rotSpd: 0.05, nVeins: 18, nPts: 16, nGlare: 110 },
-  { pos: [-1.3,  0.32, -2.8 ], scale: 0.78, rotOff: -0.42, rotSpd: 0.06, nVeins: 14, nPts: 13, nGlare:  80 },
-  { pos: [ 2.6,  0.42, -3.5 ], scale: 0.70, rotOff:  1.1,  rotSpd: 0.04, nVeins: 10, nPts: 10, nGlare:  55 },
+  { pos: [ 0,    0.22,  0   ], scale: 1.00, rotOff:  0,    rotSpd: 0.07, nVeins: 28, nPts: 22, nGlare: 700 },
+  { pos: [ 1.15,-0.03, -1.8 ], scale: 0.88, rotOff:  0.55, rotSpd: 0.05, nVeins: 18, nPts: 16, nGlare: 260 },
+  { pos: [-1.3,  0.32, -2.8 ], scale: 0.78, rotOff: -0.42, rotSpd: 0.06, nVeins: 14, nPts: 13, nGlare: 180 },
+  { pos: [ 2.6,  0.42, -3.5 ], scale: 0.70, rotOff:  1.1,  rotSpd: 0.04, nVeins: 10, nPts: 10, nGlare: 120 },
 ];
 
 /* ── ParticleSystem ──────────────────────────────────────────────────────── */

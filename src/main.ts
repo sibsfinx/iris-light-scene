@@ -3,7 +3,6 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 import { createGround, createFogPlanes, createDustParticles, animateDust } from './env';
 import { ParticleSystem } from './particles';
-import { setupLights, type SceneLights } from './lights';
 import { buildComposer } from './fx';
 import { PresenceDetector, type PresenceSignal } from './presence';
 
@@ -48,8 +47,6 @@ controls.update();
 
 /* ─── Build scene assets ─────────────────────────────────────────────────── */
 
-const lights: SceneLights = setupLights(scene);
-
 const particleSystem = new ParticleSystem(scene);
 
 // Environment
@@ -70,22 +67,12 @@ const detector = new PresenceDetector();
 // Smoothed signal values
 const smooth = { motion: 0, distance: 0, blendA: 0 };
 
-// ── Light colour palette — cool baseline + one target per mode ────────────
-// cool (idle)
-const _cool1  = new THREE.Color(0xe0eeff);
-const _cool2  = new THREE.Color(0xc0d8ff);
-// face mode — warm amber/gold
-const _warm1  = new THREE.Color(0xffa858);
-const _warm2  = new THREE.Color(0xff8830);
-// motion mode — violet + cyan
-const _viol1  = new THREE.Color(0x9040ff);
-const _cyan2  = new THREE.Color(0x18c8e8);
-// pose/arms-up mode — magenta + red
-const _mage1  = new THREE.Color(0xff0ea0);
-const _red2   = new THREE.Color(0xff1828);
-// pre-allocated temps (no GC per frame)
-const _tgt1   = new THREE.Color();
-const _tgt2   = new THREE.Color();
+// ── Colour palette — cool baseline + one target per mode ─────────────────
+const _cool1 = new THREE.Color(0xe0eeff);
+const _warm1 = new THREE.Color(0xffa858);
+const _viol1 = new THREE.Color(0x9040ff);
+const _mage1 = new THREE.Color(0xff0ea0);
+const _tgt1  = new THREE.Color();
 
 // ── Camera preview plumbing ───────────────────────────────────────────────
 const previewWrap   = document.getElementById('cam-preview-wrap')!;
@@ -123,9 +110,6 @@ document.querySelectorAll('.cam-btn').forEach(btn => {
     await detector.setMode(mode);
     document.getElementById('cam-bars')!.style.display = mode === 'off' ? 'none' : 'flex';
     smooth.motion = 0; smooth.distance = 0; smooth.blendA = 0;
-    // Snap lights back to cool on mode switch
-    lights.godRay.color.copy(_cool1);
-    lights.godRay2.color.copy(_cool2);
   });
 });
 document.getElementById('cam-bars')!.style.display = 'none';
@@ -153,32 +137,10 @@ function reactToPresence(sig: PresenceSignal, dt: number, _t: number) {
   smooth.blendA += (targetBlend - smooth.blendA) * lf * blendEase;
 
   // ── Compute target colours per mode ──────────────────────────────────────
-  if (isMotion) {
-    _tgt1.lerpColors(_cool1, _viol1, smooth.blendA);
-    _tgt2.lerpColors(_cool2, _cyan2, smooth.blendA * 0.85);
-  } else if (detector.mode === 'face') {
-    _tgt1.lerpColors(_cool1, _warm1, smooth.blendA);
-    _tgt2.lerpColors(_cool2, _warm2, smooth.blendA * 0.9);
-  } else if (detector.mode === 'pose') {
-    _tgt1.lerpColors(_cool1, _mage1, smooth.blendA);
-    _tgt2.lerpColors(_cool2, _red2,  smooth.blendA * 0.9);
-  } else {
-    _tgt1.copy(_cool1);
-    _tgt2.copy(_cool2);
-  }
-
-  const lightEase = isMotion ? 0.55 : 0.30;
-
-  // Drive light colour toward target
-  lights.godRay.color.lerp (_tgt1, lf * lightEase);
-  lights.godRay2.color.lerp(_tgt2, lf * lightEase);
-
-  // ── Light intensity ───────────────────────────────────────────────────────
-  const intBoost  = isMotion ? 90 : 65;          // motion gets bigger spike
-  const targetInt1 = 55 + smooth.blendA * intBoost;
-  const targetInt2 = 30 + smooth.blendA * (intBoost * 0.65);
-  lights.godRay.intensity  += (targetInt1 - lights.godRay.intensity)  * lf * lightEase;
-  lights.godRay2.intensity += (targetInt2 - lights.godRay2.intensity) * lf * lightEase;
+  if (isMotion)                   _tgt1.lerpColors(_cool1, _viol1, smooth.blendA);
+  else if (detector.mode === 'face') _tgt1.lerpColors(_cool1, _warm1, smooth.blendA);
+  else if (detector.mode === 'pose') _tgt1.lerpColors(_cool1, _mage1, smooth.blendA);
+  else                               _tgt1.copy(_cool1);
 
   // ── Exposure + bloom ──────────────────────────────────────────────────────
   const expBoost   = isMotion ? 0.36 : 0.28;
