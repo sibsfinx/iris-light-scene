@@ -34,6 +34,11 @@
         border-color: rgba(100, 150, 255, 0.55);
       }
       .ui-btn:active { transform: scale(0.97); }
+      .ui-btn.active {
+        background: rgba(60, 10, 80, 0.80);
+        border-color: rgba(180, 80, 255, 0.55);
+        color: rgba(240, 200, 255, 0.95);
+      }
 
       #hint {
         position: fixed;
@@ -66,6 +71,7 @@
     <div id="loading">BUILDING SCENE…</div>
     <div id="hint">Drag to orbit · Scroll to zoom · Right-drag to pan</div>
     <div id="ui">
+      <button class="ui-btn" id="btn-mic">🎤 Listen</button>
       <button class="ui-btn" id="btn-download">⬇ Download HD</button>
     </div>
     <script type="module" src="/src/main.ts"></script>

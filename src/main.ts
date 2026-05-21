@@ -5,6 +5,7 @@ import { buildEnvMap, createRockBase, createGround, createFogPlanes, createDustP
 import { createIrisFlower, generateVeinMaps } from './iris';
 import { setupLights } from './lights';
 import { buildComposer } from './fx';
+import { AudioReactor } from './audio';
 
 /* ─── Renderer ───────────────────────────────────────────────────────────── */
 
@@ -52,7 +53,7 @@ scene.environment = envMap;
 
 const { roughMap, normalMap } = generateVeinMaps(1024, 1024);
 
-setupLights(scene);
+const lights = setupLights(scene);
 
 // ── Hero flower — front-centre, full detail ──────────────────────────────
 const heroFlower = createIrisFlower(envMap, roughMap, normalMap, { detail: 1.0 });
@@ -92,6 +93,14 @@ scene.add(dust);
 
 const fx = buildComposer(renderer, scene, camera);
 
+/* ─── Audio ──────────────────────────────────────────────────────────────── */
+
+const audio = new AudioReactor();
+
+// Smoothed tilt applied to flower groups — maintained in main loop
+let smoothTiltX = 0;
+let smoothTiltZ = 0;
+
 /* ─── Auto-slow rotation (stops on user touch) ───────────────────────────── */
 
 let autoRotate = true;
@@ -107,22 +116,130 @@ window.addEventListener('resize', () => {
   fx.setSize(w, h);
 });
 
+/* ─── Apply audio-driven tilt to one flower group ────────────────────────── */
+
+function applyFlowerAudio(
+  flower: THREE.Group,
+  tiltX: number,
+  tiltZ: number,
+  tiltScale: number,
+  animatePetals: boolean,
+  mid: number,
+): void {
+  flower.rotation.x = tiltX * tiltScale;
+  flower.rotation.z = tiltZ * tiltScale;
+
+  if (!animatePetals) return;
+
+  const tiltMag   = Math.sqrt(tiltX * tiltX + tiltZ * tiltZ);
+  const tiltAngle = Math.atan2(tiltZ, tiltX);
+
+  flower.children.forEach(child => {
+    const type = child.userData['type'];
+    if (type !== 'fall' && type !== 'standard') return;
+    const petal    = child as THREE.Mesh;
+    const baseRotX = child.userData['baseRotX'] as number;
+    const petalY   = child.userData['baseRotY'] as number;
+
+    // Petals facing the tilt direction droop more; leeward side opens
+    const facing = Math.cos(petalY - tiltAngle);
+
+    if (type === 'fall') {
+      // mid → overall bloom opening; tilt → asymmetric droop
+      petal.rotation.x = baseRotX + facing * tiltMag * 0.45 + mid * 0.20;
+    } else {
+      // standards lean slightly into the push
+      petal.rotation.x = baseRotX - facing * tiltMag * 0.18 - mid * 0.08;
+    }
+  });
+}
+
 /* ─── Animation loop ─────────────────────────────────────────────────────── */
 
 const clock = new THREE.Clock();
+
+// Track backCool base color for blending
+const backCoolBaseColor = new THREE.Color(0x040a1e);
+const backCoolWarmColor = new THREE.Color(0.18, 0.06, 0.02);
 
 function animate() {
   requestAnimationFrame(animate);
   const dt = clock.getDelta();
   const t  = clock.getElapsedTime();
 
-  // Gentle slow rotation of whole scene
+  /* ── Audio analysis ──────────────────────────────────────────────────── */
+
+  audio.update();
+  const { sub, bass, lowMid, mid, high, amplitude } = audio.bands;
+  const tilt = audio.tilt;
+
+  // Smooth the tilt vector in main loop for extra sluggishness (more organic)
+  const tiltTarget = audio.active
+    ? { x: tilt.x * 0.30, z: tilt.z * 0.30 }
+    : { x: 0, z: 0 };
+  smoothTiltX += (tiltTarget.x - smoothTiltX) * 0.055;
+  smoothTiltZ += (tiltTarget.z - smoothTiltZ) * 0.055;
+
+  /* ── Flower rotation + tilt ──────────────────────────────────────────── */
+
   if (autoRotate) {
     heroFlower.rotation.y = t * 0.07;
     flower2.rotation.y    = 0.55 + t * 0.05;
     flower3.rotation.y    = -0.42 + t * 0.06;
     flower4.rotation.y    = 1.1  + t * 0.04;
   }
+
+  // Hero gets full tilt + petal bending; background flowers get reduced tilt only
+  applyFlowerAudio(heroFlower, smoothTiltX, smoothTiltZ, 1.0,  true,  mid);
+  applyFlowerAudio(flower2,    smoothTiltX, smoothTiltZ, 0.65, false, 0);
+  applyFlowerAudio(flower3,    smoothTiltX, smoothTiltZ, 0.45, false, 0);
+  applyFlowerAudio(flower4,    smoothTiltX, smoothTiltZ, 0.30, false, 0);
+
+  /* ── Sound-reactive lights ───────────────────────────────────────────── */
+
+  if (audio.active) {
+    // God rays pulse with sub bass — deep hits swell the light shafts
+    lights.godRay.intensity  = lights.base.godRay  * (1.0 + sub  * 2.8);
+    lights.godRay2.intensity = lights.base.godRay2 * (1.0 + bass * 1.6);
+
+    // Rim lights flash with overall amplitude — louder = brighter edges
+    lights.rim.intensity  = lights.base.rim  * (1.0 + amplitude * 3.2);
+    lights.rim2.intensity = lights.base.rim2 * (1.0 + mid       * 2.4);
+
+    // Back fill warms up on bass hits — transmission glow shifts amber
+    const warmth = Math.min(1, sub * 1.6 + bass * 0.9);
+    lights.backCool.color.copy(backCoolBaseColor).lerp(backCoolWarmColor, warmth);
+    lights.backCool.intensity = lights.base.backCool * (1.0 + bass * 5.0);
+
+    // Side spot flickers with high-freq transients
+    lights.sideSpot.intensity = lights.base.sideSpot * (1.0 + high * 3.0);
+  } else {
+    // Restore base values when mic is off
+    lights.godRay.intensity   = lights.base.godRay;
+    lights.godRay2.intensity  = lights.base.godRay2;
+    lights.rim.intensity      = lights.base.rim;
+    lights.rim2.intensity     = lights.base.rim2;
+    lights.backCool.color.copy(backCoolBaseColor);
+    lights.backCool.intensity = lights.base.backCool;
+    lights.sideSpot.intensity = lights.base.sideSpot;
+  }
+
+  /* ── Sound-reactive post-processing ─────────────────────────────────── */
+
+  if (audio.active) {
+    // Bloom swells on loud moments — threshold drops so more veins glow
+    fx.bloom.threshold = Math.max(0.52, 0.94 - amplitude * 0.42);
+    fx.bloom.strength  = 0.48 + amplitude * 0.55 + high * 0.25;
+
+    // Chromatic aberration intensifies on high-frequency energy
+    fx.filmPass.uniforms['chromAberr'].value = 0.0018 + high * 0.007 + amplitude * 0.004;
+  } else {
+    fx.bloom.threshold = 0.94;
+    fx.bloom.strength  = 0.48;
+    fx.filmPass.uniforms['chromAberr'].value = 0.0018;
+  }
+
+  /* ── Environment ─────────────────────────────────────────────────────── */
 
   // Subtle breathing on fog planes
   scene.children.forEach(child => {
@@ -147,6 +264,30 @@ setTimeout(() => {
   const el = document.getElementById('loading');
   if (el) el.classList.add('hidden');
 }, 300);
+
+/* ─── Mic button ─────────────────────────────────────────────────────────── */
+
+const micBtn = document.getElementById('btn-mic')!;
+
+micBtn.addEventListener('click', async () => {
+  if (audio.active) {
+    audio.stop();
+    micBtn.textContent = '🎤 Listen';
+    micBtn.classList.remove('active');
+    return;
+  }
+  try {
+    micBtn.textContent = '⏳ Connecting…';
+    micBtn.setAttribute('disabled', 'true');
+    await audio.start();
+    micBtn.textContent = '⏹ Stop';
+    micBtn.classList.add('active');
+  } catch {
+    micBtn.textContent = '🎤 Listen';
+  } finally {
+    micBtn.removeAttribute('disabled');
+  }
+});
 
 /* ─── HD Download ────────────────────────────────────────────────────────── */
 

@@ -357,6 +357,9 @@ export function createIrisFlower(
     const p = new THREE.Mesh(fallGeo, petalMat);
     p.rotation.y = (k / 3) * Math.PI * 2;
     p.rotation.x = 0.06;
+    p.userData['type']     = 'fall';
+    p.userData['baseRotX'] = 0.06;
+    p.userData['baseRotY'] = (k / 3) * Math.PI * 2;
     flower.add(p);
   }
 
@@ -380,6 +383,9 @@ export function createIrisFlower(
     const p = new THREE.Mesh(stdGeo, petalMat);
     p.rotation.y = ((k + 0.5) / 3) * Math.PI * 2;
     p.rotation.x = -0.1;
+    p.userData['type']     = 'standard';
+    p.userData['baseRotX'] = -0.1;
+    p.userData['baseRotY'] = ((k + 0.5) / 3) * Math.PI * 2;
     flower.add(p);
   }
 
