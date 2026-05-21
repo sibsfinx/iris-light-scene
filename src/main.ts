@@ -101,6 +101,10 @@ const audio = new AudioReactor();
 let smoothTiltX = 0;
 let smoothTiltZ = 0;
 
+// Per-domain sensitivity multipliers — set by UI sliders
+let sensMovement = 1.0;
+let sensColor    = 1.0;
+
 /* ─── Auto-slow rotation (stops on user touch) ───────────────────────────── */
 
 let autoRotate = true;
@@ -158,9 +162,12 @@ function applyFlowerAudio(
 
 const clock = new THREE.Clock();
 
-// Track backCool base color for blending
+// Back fill color targets per frequency band
 const backCoolBaseColor = new THREE.Color(0x040a1e);
-const backCoolWarmColor = new THREE.Color(0.18, 0.06, 0.02);
+const bassBandColor     = new THREE.Color(0.02,  0.14,  0.58);  // blue w/ cyan
+const midBandColor      = new THREE.Color(0.008, 0.025, 0.45);  // iris violet
+const highBandColor     = new THREE.Color(0.22,  0.07,  0.34);  // light purple
+const _blendColor       = new THREE.Color();                     // scratch, reused per frame
 
 function animate() {
   requestAnimationFrame(animate);
@@ -175,10 +182,10 @@ function animate() {
 
   // Smooth the tilt vector in main loop for extra sluggishness (more organic)
   const tiltTarget = audio.active
-    ? { x: tilt.x * 0.30, z: tilt.z * 0.30 }
+    ? { x: tilt.x * 0.30 * sensMovement, z: tilt.z * 0.30 * sensMovement }
     : { x: 0, z: 0 };
-  smoothTiltX += (tiltTarget.x - smoothTiltX) * 0.055;
-  smoothTiltZ += (tiltTarget.z - smoothTiltZ) * 0.055;
+  smoothTiltX += (tiltTarget.x - smoothTiltX) * Math.min(1, 0.055 * audio.speed);
+  smoothTiltZ += (tiltTarget.z - smoothTiltZ) * Math.min(1, 0.055 * audio.speed);
 
   /* ── Flower rotation + tilt ──────────────────────────────────────────── */
 
@@ -190,7 +197,7 @@ function animate() {
   }
 
   // Hero gets full tilt + petal bending; background flowers get reduced tilt only
-  applyFlowerAudio(heroFlower, smoothTiltX, smoothTiltZ, 1.0,  true,  mid);
+  applyFlowerAudio(heroFlower, smoothTiltX, smoothTiltZ, 1.0,  true,  mid * sensMovement);
   applyFlowerAudio(flower2,    smoothTiltX, smoothTiltZ, 0.65, false, 0);
   applyFlowerAudio(flower3,    smoothTiltX, smoothTiltZ, 0.45, false, 0);
   applyFlowerAudio(flower4,    smoothTiltX, smoothTiltZ, 0.30, false, 0);
@@ -198,21 +205,26 @@ function animate() {
   /* ── Sound-reactive lights ───────────────────────────────────────────── */
 
   if (audio.active) {
+    const cl = sensColor;
     // God rays pulse with sub bass — deep hits swell the light shafts
-    lights.godRay.intensity  = lights.base.godRay  * (1.0 + sub  * 2.8);
-    lights.godRay2.intensity = lights.base.godRay2 * (1.0 + bass * 1.6);
+    lights.godRay.intensity  = lights.base.godRay  * (1.0 + sub  * 2.8 * cl);
+    lights.godRay2.intensity = lights.base.godRay2 * (1.0 + bass * 1.6 * cl);
 
     // Rim lights flash with overall amplitude — louder = brighter edges
-    lights.rim.intensity  = lights.base.rim  * (1.0 + amplitude * 3.2);
-    lights.rim2.intensity = lights.base.rim2 * (1.0 + mid       * 2.4);
+    lights.rim.intensity  = lights.base.rim  * (1.0 + amplitude * 3.2 * cl);
+    lights.rim2.intensity = lights.base.rim2 * (1.0 + mid       * 2.4 * cl);
 
-    // Back fill warms up on bass hits — transmission glow shifts amber
-    const warmth = Math.min(1, sub * 1.6 + bass * 0.9);
-    lights.backCool.color.copy(backCoolBaseColor).lerp(backCoolWarmColor, warmth);
-    lights.backCool.intensity = lights.base.backCool * (1.0 + bass * 5.0);
+    // Back fill: weighted blend across band colors, amplitude drives brightness + drive
+    const bandTotal = bass + mid + high + 0.001;
+    _blendColor.r = (bass * bassBandColor.r + mid * midBandColor.r + high * highBandColor.r) / bandTotal;
+    _blendColor.g = (bass * bassBandColor.g + mid * midBandColor.g + high * highBandColor.g) / bandTotal;
+    _blendColor.b = (bass * bassBandColor.b + mid * midBandColor.b + high * highBandColor.b) / bandTotal;
+    _blendColor.multiplyScalar(1.0 + amplitude * 1.8 * cl);
+    lights.backCool.color.copy(backCoolBaseColor).lerp(_blendColor, Math.min(1, amplitude * 2.8 * cl));
+    lights.backCool.intensity = lights.base.backCool * (1.0 + amplitude * 4.5 * cl);
 
     // Side spot flickers with high-freq transients
-    lights.sideSpot.intensity = lights.base.sideSpot * (1.0 + high * 3.0);
+    lights.sideSpot.intensity = lights.base.sideSpot * (1.0 + high * 3.0 * cl);
   } else {
     // Restore base values when mic is off
     lights.godRay.intensity   = lights.base.godRay;
@@ -227,12 +239,13 @@ function animate() {
   /* ── Sound-reactive post-processing ─────────────────────────────────── */
 
   if (audio.active) {
+    const cl = sensColor;
     // Bloom swells on loud moments — threshold drops so more veins glow
-    fx.bloom.threshold = Math.max(0.52, 0.94 - amplitude * 0.42);
-    fx.bloom.strength  = 0.48 + amplitude * 0.55 + high * 0.25;
+    fx.bloom.threshold = Math.max(0.52, 0.94 - amplitude * 0.42 * cl);
+    fx.bloom.strength  = 0.48 + (amplitude * 0.55 + high * 0.25) * cl;
 
     // Chromatic aberration intensifies on high-frequency energy
-    fx.filmPass.uniforms['chromAberr'].value = 0.0018 + high * 0.007 + amplitude * 0.004;
+    fx.filmPass.uniforms['chromAberr'].value = 0.0018 + (high * 0.007 + amplitude * 0.004) * cl;
   } else {
     fx.bloom.threshold = 0.94;
     fx.bloom.strength  = 0.48;
@@ -269,13 +282,7 @@ setTimeout(() => {
 
 const micBtn = document.getElementById('btn-mic')!;
 
-micBtn.addEventListener('click', async () => {
-  if (audio.active) {
-    audio.stop();
-    micBtn.textContent = '🎤 Listen';
-    micBtn.classList.remove('active');
-    return;
-  }
+async function startMic() {
   try {
     micBtn.textContent = '⏳ Connecting…';
     micBtn.setAttribute('disabled', 'true');
@@ -287,7 +294,62 @@ micBtn.addEventListener('click', async () => {
   } finally {
     micBtn.removeAttribute('disabled');
   }
+}
+
+micBtn.addEventListener('click', async () => {
+  if (audio.active) {
+    audio.stop();
+    micBtn.textContent = '🎤 Listen';
+    micBtn.classList.remove('active');
+    return;
+  }
+  await startMic();
 });
+
+// Auto-start microphone on load
+startMic();
+
+/* ─── Fullscreen button ──────────────────────────────────────────────────── */
+
+const fsBtn = document.getElementById('btn-fullscreen')!;
+
+fsBtn.addEventListener('click', () => {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen();
+  } else {
+    document.exitFullscreen();
+  }
+});
+
+document.addEventListener('fullscreenchange', () => {
+  fsBtn.textContent = document.fullscreenElement ? '⊠ Exit' : '⛶ Full';
+});
+
+/* ─── Audio controls ─────────────────────────────────────────────────────── */
+
+function wireSlider(id: string, valId: string, onChange: (v: number) => void) {
+  const slider = document.getElementById(id) as HTMLInputElement;
+  const label  = document.getElementById(valId)!;
+
+  const saved = localStorage.getItem(id);
+  if (saved !== null) slider.value = saved;
+
+  const apply = (v: number) => {
+    label.textContent = v.toFixed(2).replace(/\.?0+$/, '') + '×';
+    onChange(v);
+  };
+  apply(parseFloat(slider.value));
+
+  slider.addEventListener('input', () => {
+    const v = parseFloat(slider.value);
+    localStorage.setItem(id, String(v));
+    apply(v);
+  });
+}
+
+wireSlider('slider-movement', 'val-movement', v => { sensMovement = v; });
+wireSlider('slider-color',    'val-color',    v => { sensColor    = v; });
+wireSlider('slider-speed',    'val-speed',    v => { audio.speed  = v; });
 
 /* ─── HD Download ────────────────────────────────────────────────────────── */
 

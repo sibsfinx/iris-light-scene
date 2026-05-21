@@ -43,6 +43,8 @@ export class AudioReactor {
   private _tilt:   TiltVector = { x: 0, z: 0 };
 
   public active = false;
+  // Reaction speed — scales lerp factors (0.1 = very sluggish, 1 = default, 3 = snappy)
+  public speed = 1.0;
 
   async start(): Promise<void> {
     this.ctx = new AudioContext();
@@ -101,17 +103,18 @@ export class AudioReactor {
     };
 
     // Different smoothing speeds — low freqs are sluggish, high freqs are snappy
-    this._smooth.sub       += (raw.sub       - this._smooth.sub)       * 0.10;
-    this._smooth.bass      += (raw.bass      - this._smooth.bass)      * 0.12;
-    this._smooth.lowMid    += (raw.lowMid    - this._smooth.lowMid)    * 0.18;
-    this._smooth.mid       += (raw.mid       - this._smooth.mid)       * 0.22;
-    this._smooth.high      += (raw.high      - this._smooth.high)      * 0.28;
-    this._smooth.amplitude += (raw.amplitude - this._smooth.amplitude) * 0.16;
+    const k = this.speed;
+    this._smooth.sub       += (raw.sub       - this._smooth.sub)       * Math.min(1, 0.10 * k);
+    this._smooth.bass      += (raw.bass      - this._smooth.bass)      * Math.min(1, 0.12 * k);
+    this._smooth.lowMid    += (raw.lowMid    - this._smooth.lowMid)    * Math.min(1, 0.18 * k);
+    this._smooth.mid       += (raw.mid       - this._smooth.mid)       * Math.min(1, 0.22 * k);
+    this._smooth.high      += (raw.high      - this._smooth.high)      * Math.min(1, 0.28 * k);
+    this._smooth.amplitude += (raw.amplitude - this._smooth.amplitude) * Math.min(1, 0.16 * k);
 
     // Tilt direction from bass shape — smooth even slower for organic sway
     const raw_t = computeBassDirection(this.dataArray, this.binHz());
-    this._tilt.x += (raw_t.x - this._tilt.x) * 0.05;
-    this._tilt.z += (raw_t.z - this._tilt.z) * 0.05;
+    this._tilt.x += (raw_t.x - this._tilt.x) * Math.min(1, 0.05 * k);
+    this._tilt.z += (raw_t.z - this._tilt.z) * Math.min(1, 0.05 * k);
   }
 
   get bands(): AudioBands {
