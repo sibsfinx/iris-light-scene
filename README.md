@@ -8,6 +8,8 @@ A real-time 3D render of crystal-glass iris flowers, built with Three.js. The go
 
 Dark near-black background. Four iris flowers at different depths — one hero in focus, three receding into bokeh blur. Petals are almost invisible glass with bright specular highlights tracing the veins. Warm amber backlight bleeds through from behind, cool blue key and rim lights hit the edges. Dust motes drift upward. Occasional god-ray planes catch the light.
 
+Hit **🎤 Listen** to make it react to sound. The flowers tilt and bend toward directions driven by which bass frequencies are loudest. Petals on the windward side droop; leeward ones lift. Lights pulse by band — god rays swell on sub bass, rim lights flash with amplitude, the back fill shifts from cool blue to warm amber on bass hits, the side spot flickers on high-frequency transients. Bloom threshold drops and chromatic aberration peaks on loud moments.
+
 ## Run it locally
 
 ```bash
@@ -29,15 +31,17 @@ COREPACK_ENABLE_STRICT=0 pnpm build
 - **Three.js r170** — MeshPhysicalMaterial with transmission, iridescence, clearcoat
 - **TypeScript + Vite** — strict mode, bundler module resolution
 - **pnpm** — package manager
+- **Web Audio API** — microphone FFT analysis for sound reactivity
 - Post-processing: BokehPass → UnrealBloomPass → FilmicShader → OutputPass
 
 ## Project layout
 
 ```
-src/main.ts     scene setup, animation loop, HD download (3840×2160 PNG)
+src/main.ts     scene setup, animation loop, sound-reactive animate, HD download
+src/audio.ts    AudioReactor — FFT bands, smoothing, bass direction vector
 src/iris.ts     petal geometry, vein roughness map, all materials, flower builder
 src/env.ts      rock base, ground, fog planes, dust particles, env map
-src/lights.ts   5 RectAreaLights (cool key/rim/top + warm amber back + cool fill)
+src/lights.ts   5 RectAreaLights — returns SceneLights refs for live animation
 src/fx.ts       EffectComposer with bokeh, bloom, filmic grain, vignette
 ```
 

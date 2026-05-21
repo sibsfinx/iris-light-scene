@@ -30,6 +30,14 @@ COREPACK_ENABLE_STRICT=0 pnpm dev   # reads PORT env var or :5173
 - ✅ OrbitControls (damped) + slow auto-rotation
 - ✅ HD download (3840×2160 PNG, separate off-screen renderer)
 - ✅ GitHub Pages deploy workflow (`.github/workflows/deploy.yml`)
+- ✅ **Sound reactivity** (branch `feat/sound-reactive`):
+  - `AudioReactor` class (`src/audio.ts`) — 2048-pt FFT, 6 smoothed bands, bass direction vector
+  - Flowers tilt in XZ toward bass-frequency direction; hero full, background scaled down
+  - Fall petals: asymmetric droop — windward droops more, leeward lifts; mid-freq controls bloom-open
+  - Standard petals lean opposite to the push
+  - Lights animated per band: god rays on sub/bass, rim on amplitude, back fill warms amber on bass, side spot on high-freq transients
+  - Bloom threshold/strength breathes with amplitude; chromatic aberration peaks on highs
+  - `setupLights()` now returns `SceneLights` with live refs + base intensities for animation
 
 ## Still to improve
 - ⚠️  Petal surfaces still slightly faceted — needs either higher segments or normal map
@@ -41,10 +49,12 @@ COREPACK_ENABLE_STRICT=0 pnpm dev   # reads PORT env var or :5173
 
 ## File map
 ```
-src/main.ts     — renderer, 4 flowers, dust, animation loop, HD download
+src/main.ts     — renderer, 4 flowers, dust, animation loop, sound-reactive animate, HD download
+src/audio.ts    — AudioReactor: FFT, band smoothing, bassDirection() XZ vector
 src/iris.ts     — buildPetalGeo(), generateVeinMap(), all materials, createIrisFlower()
+                  petals tagged with userData.type / baseRotX / baseRotY for live animation
 src/env.ts      — rock, ground, fog planes, dust particles, envMap builder
-src/lights.ts   — 5 RectAreaLights (cool key/rim/top + warm back + cool back fill)
+src/lights.ts   — 5 RectAreaLights; returns SceneLights (refs + base intensities)
 src/fx.ts       — EffectComposer: BokehPass → UnrealBloom → FilmicShader → OutputPass
 ```
 
