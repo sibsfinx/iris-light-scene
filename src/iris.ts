@@ -280,8 +280,37 @@ function buildPetalGeo(cfg: PetalConfig, isStandard = false): THREE.BufferGeomet
 export function makePetalMaterial(
   envMap: THREE.Texture,
   roughMap: THREE.CanvasTexture,
-  normalMap: THREE.CanvasTexture
+  normalMap: THREE.CanvasTexture,
+  fastGlass = false,
 ): THREE.MeshPhysicalMaterial {
+  if (fastGlass) {
+    // No transmission → no double render-pass. Glass look comes from clearcoat,
+    // iridescence, and high specular. Saves ~40-50% render time on mobile.
+    return new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color(0.006, 0.012, 0.06),
+      opacity: 0.82,
+      transparent: true,
+      depthWrite: false,
+      roughness: 0.010,
+      roughnessMap: roughMap,
+      normalMap: normalMap,
+      normalScale: new THREE.Vector2(7.0, 7.0),
+      metalness: 0.0,
+      ior: 1.55,
+      specularIntensity: 2.8,
+      specularColor: new THREE.Color(0.95, 0.98, 1.0),
+      iridescence: 0.75,
+      iridescenceIOR: 1.45,
+      iridescenceThicknessRange: [140, 500] as [number, number],
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.002,
+      sheen: 0.0,
+      side: THREE.DoubleSide,
+      envMap,
+      envMapIntensity: 0.40,
+    });
+  }
+
   return new THREE.MeshPhysicalMaterial({
     color: new THREE.Color(0.006, 0.012, 0.06),    // near-black with deep navy tint
     transmission: 0.45,
@@ -295,7 +324,7 @@ export function makePetalMaterial(
     metalness: 0.0,
     ior: 1.55,
     specularIntensity: 2.2,
-    specularColor: new THREE.Color(0.95, 0.98, 1.0),  // near-white specular
+    specularColor: new THREE.Color(0.95, 0.98, 1.0),
     attenuationColor: new THREE.Color(0.008, 0.025, 0.45),
     attenuationDistance: 0.08,
     iridescence: 0.50,
@@ -332,13 +361,14 @@ export function createIrisFlower(
   envMap: THREE.Texture,
   roughMap: THREE.CanvasTexture,
   normalMap: THREE.CanvasTexture,
-  opts: { detail?: number } = {}
+  opts: { detail?: number; fastGlass?: boolean } = {}
 ): THREE.Group {
-  const detail = opts.detail ?? 1.0;
+  const detail    = opts.detail    ?? 1.0;
+  const fastGlass = opts.fastGlass ?? false;
   const s = (n: number) => Math.max(4, Math.round(n * detail));
   const flower = new THREE.Group();
 
-  const petalMat = makePetalMaterial(envMap, roughMap, normalMap);
+  const petalMat = makePetalMaterial(envMap, roughMap, normalMap, fastGlass);
 
   // ── Falls (3 × broad drooping outer petals) ─────────────────────────────
   const fallGeo = buildPetalGeo({
@@ -392,8 +422,8 @@ export function createIrisFlower(
   // ── Style arms (3 × small horizontal crested structures) ─────────────────
   const styleMat = petalMat.clone();
   styleMat.color = new THREE.Color(0.04, 0.08, 0.22);
-  styleMat.iridescence = 0.3;
-  styleMat.transmission = 0.38;
+  styleMat.iridescence = fastGlass ? 0.45 : 0.3;
+  if (!fastGlass) styleMat.transmission = 0.38;
   styleMat.envMapIntensity = 0.2;
 
   const styleGeo = buildPetalGeo({

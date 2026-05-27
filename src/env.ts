@@ -125,72 +125,102 @@ export function createFogPlanes(): THREE.Group {
   return group;
 }
 
-/* ─── Dust / floating particles ──────────────────────────────────────────── */
+/* ─── GPU dust — position computed entirely in vertex shader ─────────────── */
+// Initial positions are uploaded once. Only a time uniform changes per frame,
+// eliminating the per-frame CPU→GPU buffer upload of the old CPU dust.
 
-export function createDustParticles(): THREE.Group {
-  const group = new THREE.Group();
+const dustVS = /* glsl */`
+  uniform float time;
+  uniform float speed;
+  uniform float pointSize;
 
-  // Fine dust motes — tiny bright specks
-  const dustCount = 600;
-  const dustPos = new Float32Array(dustCount * 3);
-  for (let i = 0; i < dustCount; i++) {
-    dustPos[i * 3 + 0] = (Math.random() - 0.5) * 6;
-    dustPos[i * 3 + 1] = Math.random() * 5 - 1.5;
-    dustPos[i * 3 + 2] = (Math.random() - 0.5) * 5;
+  void main() {
+    // Y: linear rise with wrap in [-1.5, 3.0]
+    float y = mod(position.y + 1.5 + time * speed, 4.5) - 1.5;
+
+    // X: bounded sinusoidal drift — integral of sin(t*0.15 + phase)*0.008 dt
+    float phase  = float(gl_VertexID) * 0.7;
+    float xDrift = 0.0533 * (cos(phase) - cos(time * 0.15 + phase));
+
+    vec4 mvPos    = modelViewMatrix * vec4(position.x + xDrift, y, position.z, 1.0);
+    gl_PointSize  = pointSize * (300.0 / -mvPos.z);
+    gl_Position   = projectionMatrix * mvPos;
   }
-  const dustGeo = new THREE.BufferGeometry();
-  dustGeo.setAttribute('position', new THREE.Float32BufferAttribute(dustPos, 3));
-  const dustMat = new THREE.PointsMaterial({
-    color: 0xc0d4ff,
-    size: 0.004,
-    sizeAttenuation: true,
-    transparent: true,
-    opacity: 0.45,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-  });
-  group.add(new THREE.Points(dustGeo, dustMat));
+`;
 
-  // Cool silver micro-specks (lit by the god-rays)
-  const silverCount = 120;
-  const silverPos = new Float32Array(silverCount * 3);
-  for (let i = 0; i < silverCount; i++) {
-    silverPos[i * 3 + 0] = (Math.random() - 0.5) * 4;
-    silverPos[i * 3 + 1] = Math.random() * 4 - 1;
-    silverPos[i * 3 + 2] = (Math.random() - 0.5) * 3;
+const dustFS = /* glsl */`
+  uniform vec3  color;
+  uniform float opacity;
+
+  void main() {
+    float d     = length(gl_PointCoord - 0.5);
+    float alpha = 1.0 - smoothstep(0.3, 0.5, d);
+    gl_FragColor = vec4(color, opacity * alpha);
   }
-  const silverGeo = new THREE.BufferGeometry();
-  silverGeo.setAttribute('position', new THREE.Float32BufferAttribute(silverPos, 3));
-  const silverMat = new THREE.PointsMaterial({
-    color: 0xc8deff,
-    size: 0.007,
-    sizeAttenuation: true,
-    transparent: true,
-    opacity: 0.45,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-  });
-  group.add(new THREE.Points(silverGeo, silverMat));
+`;
 
-  return group;
+export interface GPUDust {
+  group: THREE.Group;
+  tick(elapsed: number): void;
 }
 
-/* ─── Animate dust (call each frame) ────────────────────────────────────── */
+function makeGPUPoints(
+  count: number,
+  xRange: number, yRange: [number, number], zRange: number,
+  color: number,
+  size: number,
+  opacity: number,
+  speed: number,
+): { points: THREE.Points; timeUni: { value: number } } {
+  const pos = new Float32Array(count * 3);
+  const [yMin, yMax] = yRange;
+  for (let i = 0; i < count; i++) {
+    pos[i * 3 + 0] = (Math.random() - 0.5) * xRange;
+    pos[i * 3 + 1] = Math.random() * (yMax - yMin) + yMin;
+    pos[i * 3 + 2] = (Math.random() - 0.5) * zRange;
+  }
 
-export function animateDust(dust: THREE.Group, elapsed: number, delta: number): void {
-  dust.children.forEach((child, idx) => {
-    if (!(child instanceof THREE.Points)) return;
-    const pos = child.geometry.attributes['position'] as THREE.BufferAttribute;
-    const speed = idx === 0 ? 0.025 : 0.018;
-    for (let i = 0; i < pos.count; i++) {
-      // Float upward, drift sideways
-      const y = pos.getY(i) + delta * speed;
-      const x = pos.getX(i) + Math.sin(elapsed * 0.15 + i * 0.7) * delta * 0.008;
-      pos.setY(i, y > 3.0 ? -1.5 : y);
-      pos.setX(i, x);
-    }
-    pos.needsUpdate = true;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  // Skip frustum culling — particles move outside their original bounding sphere
+  geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), Infinity);
+
+  const timeUni: { value: number } = { value: 0 };
+  const mat = new THREE.ShaderMaterial({
+    uniforms: {
+      time:      timeUni,
+      speed:     { value: speed },
+      pointSize: { value: size },
+      color:     { value: new THREE.Color(color) },
+      opacity:   { value: opacity },
+    },
+    vertexShader:   dustVS,
+    fragmentShader: dustFS,
+    blending:    THREE.AdditiveBlending,
+    depthWrite:  false,
+    transparent: true,
   });
+
+  const points = new THREE.Points(geo, mat);
+  points.frustumCulled = false;
+  return { points, timeUni };
+}
+
+export function createGPUDust(dustCount: number, silverCount: number): GPUDust {
+  const group = new THREE.Group();
+
+  const d1 = makeGPUPoints(dustCount,   6, [-1.5, 3.5], 5, 0xc0d4ff, 0.004, 0.45, 0.025);
+  const d2 = makeGPUPoints(silverCount, 4, [-1.0, 3.0], 3, 0xc8deff, 0.007, 0.45, 0.018);
+
+  group.add(d1.points, d2.points);
+
+  return {
+    group,
+    tick(elapsed: number) {
+      d1.timeUni.value = elapsed;
+      d2.timeUni.value = elapsed;
+    },
+  };
 }
 
 /* ─── Dark environment map ───────────────────────────────────────────────── */
